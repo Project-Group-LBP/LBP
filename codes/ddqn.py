@@ -1,206 +1,165 @@
+import gymnasium as gym
 import numpy as np
 import random
-import tensorflow as tf
 from collections import deque
-import matplotlib.pyplot as plt
+from tensorflow import keras
 
-# Environment parameters
-grid_size = 10
-num_episodes = 10
-max_steps = 50
-learning_rate = 0.001
-gamma = 0.9
-epsilon = 1.0
-epsilon_decay = 0.99
-epsilon_min = 0.1
-
-# Agent and obstacle parameters
-num_agents = 3
-num_obstacles = 15
-
-class Environment:
-    def __init__(self, grid_size, num_agents, num_obstacles):
-        self.grid_size = grid_size
-        self.num_agents = num_agents
-        self.num_obstacles = num_obstacles
-        self.visited = np.zeros((grid_size, grid_size))
-        self.visited_counts = np.zeros((grid_size, grid_size))
-        self.reset()
-
-    def reset(self):
-        # Reset positions and visited array
-        self.agent_positions = {i: (random.randint(0, self.grid_size - 1), random.randint(0, self.grid_size - 1)) for i in range(self.num_agents)}
-        self.obstacle_positions = [(random.randint(0, self.grid_size - 1), random.randint(0, self.grid_size - 1)) for _ in range(self.num_obstacles)]
-        self.visited = np.zeros((self.grid_size, self.grid_size))
-        self.visited_counts = np.zeros((self.grid_size, self.grid_size))
-        self.state = self._get_state()
-        return self.state
-
-    def step(self, actions):
-        rewards = []
-        for agent_id, action in enumerate(actions):
-            new_pos = self._move(self.agent_positions[agent_id], action)
-            if new_pos not in self.obstacle_positions:
-                self.agent_positions[agent_id] = new_pos
-                reward = self._calculate_reward(new_pos, agent_id)
-                if self.visited[new_pos] == 0:
-                    self.visited[new_pos] = 1  # Mark cell as visited
-                    reward += 10  # Higher reward for visiting new cells
-                else:
-                    reward += 1  # Small reward for moving
-
-                self.visited_counts[new_pos] += 1
-            else:
-                reward = -1  # Penalty for hitting an obstacle (minimal)
-            rewards.append(reward)
-       
-        self.state = self._get_state()
-        done = np.all(self.visited)  # Check if all cells are visited
-        return self.state, rewards, done
-
-    def _calculate_reward(self, new_pos, agent_id):
-        # Reduce penalties to avoid negative rewards
-        distance_penalty = 0
-        for other_id, pos in self.agent_positions.items():
-            if other_id != agent_id:
-                dist = np.sqrt((new_pos[0] - pos[0]) ** 2 + (new_pos[1] - pos[1]) ** 2)
-                distance_penalty += -0.05 * (1 / (dist + 1))  # Reduced distance penalty factor
-       
-        # Reward based on sigmoid of visit count
-        visit_count = self.visited_counts[new_pos]
-        sigmoid_penalty = -0.05 * (1 / (1 + np.exp(-visit_count + 2)))  # Reduced revisit penalty factor
-
-        # Base positive reward for any movement to encourage exploration
-        base_reward = 1.0
-       
-        # Combined reward
-        combined_reward = base_reward + distance_penalty + sigmoid_penalty
-        return combined_reward
-
-    def _move(self, position, action):
-        x, y = position
-        if action == 0:   # Up
-            return (max(x - 1, 0), y)
-        elif action == 1:  # Down
-            return (min(x + 1, self.grid_size - 1), y)
-        elif action == 2:  # Left
-            return (x, max(y - 1, 0))
-        elif action == 3:  # Right
-            return (x, min(y + 1, self.grid_size - 1))
-        return position
-
-    def _get_state(self):
-        state = np.zeros((self.grid_size, self.grid_size))
-        for pos in self.obstacle_positions:
-            state[pos] = -1  # Obstacles
-        for agent_id, pos in self.agent_positions.items():
-            state[pos] = agent_id + 1  # Agents
-        return state
 
 class DDQNAgent:
-    def __init__(self, state_size, action_size):
-        self.state_size = state_size
-        self.action_size = action_size
+    def __init__(self, env, lr, gamma, eps_init, eps_min, eps_decay):
+        self.env = env
+        self.learning_rate = lr
+        self.gamma = gamma
+        self.epsilon = eps_init
+        self.epsilon_min = eps_min
+        self.epsilon_decay = eps_decay
+        self.state_size = self.env.observation_space.shape[0]
+        self.action_size = self.env.action_space.n
+
+        # Experience replay buffer
         self.memory = deque(maxlen=2000)
-        self.epsilon = epsilon
+
+        # Main and target networks
         self.model = self._build_model()
         self.target_model = self._build_model()
-        self.update_target_model()
+        self.update_target_network()
+        self.update_target_frequency = 5  # Update target network every n episodes
 
     def _build_model(self):
-        model = tf.keras.Sequential()
-        model.add(tf.keras.layers.Flatten(input_shape=(self.state_size, self.state_size)))
-        model.add(tf.keras.layers.Dense(24, activation='relu'))
-        model.add(tf.keras.layers.Dense(24, activation='relu'))
-        model.add(tf.keras.layers.Dense(self.action_size, activation='linear'))
-        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate), loss='mse')
+        model = keras.models.Sequential(
+            [
+                keras.layers.Input(shape=(self.state_size,)),
+                keras.layers.Dense(24, activation="relu"),
+                keras.layers.Dense(24, activation="relu"),
+                keras.layers.Dense(self.action_size, activation="linear"),
+            ]
+        )
+        model.compile(
+            loss="mse",
+            optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
+        )
         return model
-
-    def update_target_model(self):
-        self.target_model.set_weights(self.model.get_weights())
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def act(self, state):
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
-        act_values = self.model.predict(state)
+    # Training : Behaviour policy : epsilon-greedy
+    # Testing : Target policy : greedy
+    def act(self, state, training):
+        if training and np.random.random() <= self.epsilon:
+            return self.env.action_space.sample()
+        act_values = self.model.predict(state, verbose=0)
         return np.argmax(act_values[0])
 
     def replay(self, batch_size):
         if len(self.memory) < batch_size:
             return
+
         minibatch = random.sample(self.memory, batch_size)
-        for state, action, reward, next_state, done in minibatch:
-            target = self.model.predict(state)
-            if done:
-                target[0][action] = reward
-            else:
-                t = self.target_model.predict(next_state)
-                target[0][action] = reward + gamma * np.amax(t[0])
-            self.model.fit(state, target, epochs=1, verbose=0)
-        if self.epsilon > epsilon_min:
-            self.epsilon *= epsilon_decay
+        states = np.array([i[0][0] for i in minibatch])
+        actions = np.array([i[1] for i in minibatch])
+        rewards = np.array([i[2] for i in minibatch])
+        next_states = np.array([i[3][0] for i in minibatch])
+        dones = np.array([i[4] for i in minibatch])
 
-# Initialize environment and agent
-env = Environment(grid_size, num_agents, num_obstacles)
-state_size = grid_size
-action_size = 4  # Up, Down, Left, Right
-agents = [DDQNAgent(state_size, action_size) for _ in range(num_agents)]
+        # Get the next action to take based on the current model
+        next_actions = np.argmax(self.model.predict(next_states, verbose=0), axis=1)
 
-# Initialize data for plotting
-reward_per_episode = []
-coverage_per_episode = []
-max_steps_history = []
+        # Q(s', a) using target network (for the action selected by the main network)
+        target_next = self.target_model.predict(next_states, verbose=0)
+        target_q = rewards + self.gamma * target_next[ np.arange(batch_size), next_actions ] * (1 - dones)
 
-# Training loop
-for episode in range(num_episodes):
-    state = env.reset()
-    total_rewards = [0] * num_agents
-    cumulative_rewards_per_step = []
-    coverage_per_step = []
-   
-    for step in range(max_steps):
-        print(f"Episode {episode + 1}, Step {step + 1}")
-        actions = [agent.act(np.reshape(state, [1, state_size, state_size])) for agent in agents]
-        next_state, rewards, done = env.step(actions)
-        cumulative_reward = sum(rewards) if step == 0 else cumulative_rewards_per_step[-1] + sum(rewards)
-        cumulative_rewards_per_step.append(cumulative_reward)  # Collect cumulative rewards for plotting
-        coverage = np.sum(env.visited) / (grid_size * grid_size) * 100
-        coverage_per_step.append(coverage)
-        print(f"Coverage after Step {step + 1}: {coverage:.2f}%")
-       
-        for i, agent in enumerate(agents):
-            agent.remember(np.reshape(state, [1, state_size, state_size]), actions[i], rewards[i], np.reshape(next_state, [1, state_size, state_size]), done)
-            total_rewards[i] += rewards[i]
-        state = next_state
-        if done:
-            break
-        for agent in agents:
-            agent.replay(32)
-    for agent in agents:
-        agent.update_target_model()
-   
-    reward_per_episode.append(cumulative_rewards_per_step)
-    coverage_per_episode.append(coverage_per_step)
-    print(f"Episode {episode + 1}: Total Rewards: {total_rewards}")
-    print(f"Steps taken in Episode {episode + 1}: {len(cumulative_rewards_per_step)}")
+        # Q(s, a) using main network
+        target_f = self.model.predict(states, verbose=0)
+        for i, action in enumerate(actions):
+            target_f[i][action] = target_q[i]
 
-plt.figure(figsize=(10, 6))
-for episode in range(num_episodes):
-    plt.plot(reward_per_episode[episode], label=f'Episode {episode + 1}')
-plt.xlabel('Steps')
-plt.ylabel('Cumulative Reward')
-plt.title('Cumulative Reward vs. Steps for Each Episode')
-plt.legend()
-plt.show()
+        self.model.fit(states, target_f, epochs=1, verbose=0)
 
-plt.figure(figsize=(10, 6))
-for episode in range(num_episodes):
-    plt.plot(coverage_per_episode[episode], label=f'Episode {episode + 1}')
-plt.xlabel('Steps')
-plt.ylabel('Coverage (%)')
-plt.title('Coverage vs. Steps for Each Episode')
-plt.legend()
-plt.show()
+        # Epsilon decay
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+    def update_target_network(self):
+        self.target_model.set_weights(self.model.get_weights())
+
+    def train_ddqn(self, episodes, max_steps, batch_size):
+        scores = []
+        for episode in range(episodes):
+            state, _ = self.env.reset()
+            state = np.reshape(state, [1, self.state_size])
+            score = 0
+
+            for _ in range(max_steps):
+                action = self.act(state, training=True)
+                next_state, reward, terminated, truncated, _ = self.env.step(action)
+                done = terminated or truncated
+                next_state = np.reshape(next_state, [1, self.state_size])
+                self.remember(state, action, reward, next_state, done)
+                state = next_state
+                score += reward
+                self.replay(batch_size)
+
+                if done:
+                    break
+
+            scores.append(score)
+            # Print the progress every 10 episodes
+            if (episode + 1) % 10 == 0:
+                avg_score = np.mean(scores[-10:])
+                print(
+                    f"Episode: {episode + 1}/{episodes}, Score: {score}",
+                    f"  Average Score (last 10): {avg_score:.2f}"
+                    f"  Epsilon: {self.epsilon}",
+                )
+
+            # Update target network periodically
+            if episode % self.update_target_frequency == 0:
+                self.update_target_network()
+
+        print(f"\nAverage Overall Score: {np.mean(scores):.2f}\n")
+
+    def test_ddqn(self, episodes, max_steps):
+        scores = []
+        for episode in range(episodes):
+            state, _ = self.env.reset()
+            state = np.reshape(state, [1, self.state_size])
+            score = 0
+
+            for _ in range(max_steps):
+                action = self.act(state, training=False)
+                next_state, reward, terminated, truncated, _ = self.env.step(action)
+                next_state = np.reshape(next_state, [1, self.state_size])
+                state = next_state
+                score += reward
+                if terminated or truncated:
+                    break
+
+            scores.append(score)
+            print(f"Test Episode: {episode+1}, Score: {score}")
+
+        print(f"Average Test Score: {np.mean(scores):.2f}")
+
+
+if __name__ == "__main__":
+
+    # Using CartPole for environment
+    env = gym.make("CartPole-v1")
+
+    # Parameters
+    num_train_episodes = 100
+    max_steps = 200
+    learning_rate = 0.001
+    gamma = 0.95
+    epsilon_initial = 1.0
+    epsilon_min = 0.01
+    epsilon_decay = 0.995
+    batch_size = 32
+    num_test_episodes = 10
+
+    agent = DDQNAgent(
+        env, learning_rate, gamma, epsilon_initial, epsilon_min, epsilon_decay
+    )
+    agent.train_ddqn(num_train_episodes, max_steps, batch_size)
+    agent.test_ddqn(num_test_episodes, max_steps)
+    env.close()
