@@ -51,6 +51,7 @@ class DDQNAgent:
         act_values = self.model.predict(state, verbose=0)
         return np.argmax(act_values[0])
 
+    # Vectorized operations
     def replay(self, batch_size):
         if len(self.memory) < batch_size:
             return
@@ -62,17 +63,16 @@ class DDQNAgent:
         next_states = np.array([i[3][0] for i in minibatch])
         dones = np.array([i[4] for i in minibatch])
 
-        # Get the next action to take based on the current model
+        # Get the next action to take based on the main network
         next_actions = np.argmax(self.model.predict(next_states, verbose=0), axis=1)
 
         # Q(s', a) using target network (for the action selected by the main network)
         target_next = self.target_model.predict(next_states, verbose=0)
-        target_q = rewards + self.gamma * target_next[ np.arange(batch_size), next_actions ] * (1 - dones)
+        target_q = rewards + self.gamma * target_next[np.arange(batch_size), next_actions] * (1 - dones)
 
         # Q(s, a) using main network
         target_f = self.model.predict(states, verbose=0)
-        for i, action in enumerate(actions):
-            target_f[i][action] = target_q[i]
+        target_f[np.arange(batch_size), actions] = target_q
 
         self.model.fit(states, target_f, epochs=1, verbose=0)
 
