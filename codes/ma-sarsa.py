@@ -1,3 +1,7 @@
+# Multi-agent independent SARSA learning
+# where multiple agents collaborate for maximum coverage of the grid while avoiding obstacles
+# (Reward of an agent is affected by positions of other agents)
+
 import numpy as np
 import random
 import matplotlib.pyplot as plt
