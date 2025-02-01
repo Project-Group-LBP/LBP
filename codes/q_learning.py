@@ -48,18 +48,18 @@ class QLearningAgent:
         episode_rewards = []
         rolling_avg_rewards = []
 
-        for episode in range(num_train_episodes):
+        for _ in range(num_train_episodes):
             state, _ = self.env.reset()
             state = self.discretize_state(state)
             total_reward = 0
 
             for _ in range(max_steps):
                 action = self.choose_action(state)
-                next_state, reward, done, truncated, _ = self.env.step(action)
+                next_state, reward, terminated, truncated, _ = self.env.step(action)
                 next_state = self.discretize_state(next_state)
 
                 # Update Q-table using the Q-learning update rule
-                self.Q[state][action] = self.Q[state][action] + self.alpha * (
+                self.Q[state][action] += self.alpha * (
                     reward
                     + self.gamma * np.max(self.Q[next_state])
                     - self.Q[state][action]
@@ -68,7 +68,7 @@ class QLearningAgent:
                 state = next_state  # Move to the next state
                 total_reward += reward
 
-                if done or truncated:  # If the episode ends
+                if terminated or truncated:  # If the episode ends
                     break
 
             # Store reward for the episode
@@ -88,7 +88,7 @@ class QLearningAgent:
 
     def test_agent(self, num_test_episodes, max_steps):
         episode_rewards = []
-        for episode in range(num_test_episodes):
+        for _ in range(num_test_episodes):
             state, _ = self.env.reset()
             state = self.discretize_state(state)
             total_reward = 0
@@ -119,7 +119,7 @@ class QLearningAgent:
         )  # Calculate overall average reward for training
 
         # Create a figure with subplots
-        fig, axes = plt.subplots(
+        _, axes = plt.subplots(
             1, 2, figsize=(14, 7), gridspec_kw={"width_ratios": [2, 1]}
         )
 
