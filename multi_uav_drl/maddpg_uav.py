@@ -4,26 +4,25 @@ import torch.nn.functional as F
 from agents import ActorNetwork, CriticNetwork, soft_update, OUNoise
 from buffer import ReplayBuffer
 
+
 class MADDPG:
-    def __init__(self, num_agents, obs_dim, action_dim, device='cpu'):
+    def __init__(self, num_agents, obs_dim, action_dim, hidden_dim=160, device="cpu"):
         self.num_agents = num_agents
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.device = device
 
-        # One actor per UAV (Decentralized execution)
-        self.actors = [ActorNetwork(obs_dim, action_dim).to(device) for _ in range(num_agents)]
-        self.target_actors = [ActorNetwork(obs_dim, action_dim).to(device) for _ in range(num_agents)]
-        self.actor_optimizers = [torch.optim.Adam(actor.parameters(), lr=0.001) for actor in self.actors]
-
-        # One centralized critic (CTDE)
         total_obs_dim = num_agents * obs_dim
         total_action_dim = num_agents * action_dim
-        self.critic = CriticNetwork(total_obs_dim, total_action_dim).to(device)
-        self.target_critic = CriticNetwork(total_obs_dim, total_action_dim).to(device)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=0.002)
 
-        # Copy actor and critic params to targets
+        self.actors = [ActorNetwork(obs_dim, action_dim, hidden_dim).to(device) for _ in range(num_agents)]
+        self.target_actors = [ActorNetwork(obs_dim, action_dim, hidden_dim).to(device) for _ in range(num_agents)]
+        self.actor_optimizers = [torch.optim.Adam(actor.parameters(), lr=0.001) for actor in self.actors]
+        self.critics = [CriticNetwork(total_obs_dim, total_action_dim, hidden_dim).to(device) for _ in range(num_agents)]
+        self.target_critics = [CriticNetwork(total_obs_dim, total_action_dim, hidden_dim).to(device) for _ in range(num_agents)]
+        self.critic_optimizers = [torch.optim.Adam(critic.parameters(), lr=0.002) for critic in self.critics]
+
+        # Copy weights to target networks
         self._init_target_networks()
 
         # Replay Buffer
@@ -39,7 +38,8 @@ class MADDPG:
     def _init_target_networks(self):
         for target_actor, actor in zip(self.target_actors, self.actors):
             target_actor.load_state_dict(actor.state_dict())
-        self.target_critic.load_state_dict(self.critic.state_dict())
+        for target_critic, critic in zip(self.target_critics, self.critics):
+            target_critic.load_state_dict(critic.state_dict())
 
     def select_action(self, obs, noise=True):
         """
@@ -59,65 +59,67 @@ class MADDPG:
         if len(self.buffer) < batch_size:
             return  # Not enough samples
 
-        # Sample from buffer
-        obs_batch, act_batch, rew_batch, next_obs_batch, done_batch = self.buffer.sample(batch_size)
+        for i in range(self.num_agents):
 
-        # Convert to torch tensors
-        obs_tensor = torch.tensor(obs_batch, dtype=torch.float32).to(self.device)     # (B, N, obs_dim)
-        act_tensor = torch.tensor(act_batch, dtype=torch.float32).to(self.device)     # (B, N, action_dim)
-        next_obs_tensor = torch.tensor(next_obs_batch, dtype=torch.float32).to(self.device)
-        rew_tensor = torch.tensor(rew_batch, dtype=torch.float32).to(self.device)
-        done_tensor = torch.tensor(done_batch, dtype=torch.float32).to(self.device)
+            # Sample from buffer
+            obs_batch, act_batch, rew_batch, next_obs_batch, done_batch = self.buffer.sample(batch_size)
 
-        # Centralized critic input: flatten all obs and actions
-        obs_flat = obs_tensor.view(batch_size, -1)
-        act_flat = act_tensor.view(batch_size, -1)
+            # Convert to torch tensors
+            obs_tensor = torch.tensor(obs_batch, dtype=torch.float32).to(self.device)
+            act_tensor = torch.tensor(act_batch, dtype=torch.float32).to(self.device)
+            next_obs_tensor = torch.tensor(next_obs_batch, dtype=torch.float32).to(self.device)
+            rew_tensor = torch.tensor(rew_batch, dtype=torch.float32).to(self.device)
+            done_tensor = torch.tensor(done_batch, dtype=torch.float32).to(self.device)
 
-        # Next actions by target actors
-        next_actions = []
-        for i, target_actor in enumerate(self.target_actors):
-            next_act = target_actor(next_obs_tensor[:, i, :])
-            next_actions.append(next_act)
-        next_act_tensor = torch.stack(next_actions, dim=1)  # (B, N, action_dim)
-        next_act_flat = next_act_tensor.view(batch_size, -1)
+            obs_flat = obs_tensor.view(batch_size, -1)
+            act_flat = act_tensor.view(batch_size, -1)
+            next_obs_flat = next_obs_tensor.view(batch_size, -1)
 
-        # Compute target Q value
-        with torch.no_grad():
-            target_q = self.target_critic(next_obs_tensor.view(batch_size, -1), next_act_flat)
-            total_reward = rew_tensor.sum(dim=1, keepdim=True)  # (batch_size, 1)
-            total_done = done_tensor.sum(dim=1, keepdim=True)   # (batch_size, 1)
-            target_value = total_reward + self.gamma * target_q * (1 - total_done)
-            
-        # Critic Update
-        current_q = self.critic(obs_flat, act_flat)
-        critic_loss = F.mse_loss(current_q, target_value)
+            # Get next actions from target actors
+            next_actions = []
+            for x, target_actor in enumerate(self.target_actors):
+                next_agent_action = target_actor(next_obs_tensor[:, x, :])
+                next_actions.append(next_agent_action)
+            next_actions_tensor = torch.stack(next_actions, dim=1)
+            next_actions_flat = next_actions_tensor.view(batch_size, -1)
 
-        self.critic_optimizer.zero_grad()
-        critic_loss.backward()
-        self.critic_optimizer.step()
+            # Calculate target Q-value
+            with torch.no_grad():
+                target_q = self.target_critics[i](next_obs_flat, next_actions_flat)
+                target_value = rew_tensor[:, i].unsqueeze(1) + self.gamma * target_q * (1 - done_tensor[:, i].unsqueeze(1))
 
-        # Actor Update (decentralized execution, centralized gradients via critic)
-        for i, actor in enumerate(self.actors):
+            # Current Q-value
+            current_q = self.critics[i](obs_flat, act_flat)
+
+            # Critic loss
+            critic_loss = F.mse_loss(current_q, target_value)
+
+            self.critic_optimizers[i].zero_grad()
+            critic_loss.backward()
+            self.critic_optimizers[i].step()
+
+            # Create action inputs where only the current agent's action comes from the actor
             current_actions = []
-            for j, a in enumerate(self.actors):
-                if i == j:
-                    a_input = obs_tensor[:, j, :]
-                    current_actions.append(a(a_input))
+            for j in range(self.num_agents):
+                if j == i:
+                    current_agent_action = self.actors[i](obs_tensor[:, i, :])
+                    current_actions.append(current_agent_action)
                 else:
                     current_actions.append(act_tensor[:, j, :].detach())
-            all_actions = torch.stack(current_actions, dim=1)
-            all_actions_flat = all_actions.view(batch_size, -1)
 
-            actor_loss = -self.critic(obs_flat, all_actions_flat).mean()
+            current_actions_tensor = torch.stack(current_actions, dim=1)
+            current_actions_flat = current_actions_tensor.view(batch_size, -1)
+
+            # Policy gradient
+            actor_loss = -self.critics[i](obs_flat, current_actions_flat).mean()
 
             self.actor_optimizers[i].zero_grad()
             actor_loss.backward()
             self.actor_optimizers[i].step()
 
-        # Soft update target networks
-        for actor, target_actor in zip(self.actors, self.target_actors):
-            soft_update(target_actor, actor, self.tau)
-        soft_update(self.target_critic, self.critic, self.tau)
+            # Soft update target networks
+            soft_update(self.target_critics[i], self.critics[i], self.tau)
+            soft_update(self.target_actors[i], self.actors[i], self.tau)
 
     def store(self, obs, actions, rewards, next_obs, dones):
         self.buffer.add(obs, actions, rewards, next_obs, dones)
