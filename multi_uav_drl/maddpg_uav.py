@@ -84,8 +84,10 @@ class MADDPG:
         # Compute target Q value
         with torch.no_grad():
             target_q = self.target_critic(next_obs_tensor.view(batch_size, -1), next_act_flat)
-            target_value = rew_tensor.sum(dim=1, keepdim=True) + self.gamma * target_q * (1 - done_tensor.sum(dim=1, keepdim=True))
-
+            total_reward = rew_tensor.sum(dim=1, keepdim=True)  # (batch_size, 1)
+            total_done = done_tensor.sum(dim=1, keepdim=True)   # (batch_size, 1)
+            target_value = total_reward + self.gamma * target_q * (1 - total_done)
+            
         # Critic Update
         current_q = self.critic(obs_flat, act_flat)
         critic_loss = F.mse_loss(current_q, target_value)

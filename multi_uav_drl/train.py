@@ -1,4 +1,5 @@
-import torch
+# TODO: plot graphs of the results stored
+
 import numpy as np
 from uav_env import MultiUAVEnv
 from maddpg_uav import MADDPG
@@ -17,7 +18,7 @@ def train():
     batch_size = 64
 
     # Initialize for analysis/plotting
-    score_log = {'coverage': [], 'fairness': [], 'comm_penalty': [], 'obstacle_penalty': [], 'movement': []}
+    score_log_per_episode = {'coverage': [], 'fairness': [], 'energy_efficiency': [], 'comm_penalty_per_uav': []}
     episode_rewards = []
 
     print("\n🚀 MADDPG UAV Training Started...\n")
@@ -26,27 +27,26 @@ def train():
     for episode in range(1, num_episodes + 1):
         obs = env.reset()  # shape: (num_agents, obs_dim)
         maddpg.reset_noise()
+        # To stored step details for each episode
+        step = 0
         episode_reward = 0
+        score_log = {'coverage': [], 'fairness': [], 'energy_efficiency': [], 'comm_penalty_per_uav': []}
 
         for step in range(max_steps):
             # Each agent selects action based on local observation
             actions = maddpg.select_action(obs)  # shape: (num_agents, action_dim)
 
             # Step the environment
-            next_obs, done = env.step(actions)
+            next_obs, done, reward_per_uav, (cov, fair, energy_eff, comm_per_uav) = env.step(actions)
 
-            # ✅ Compute reward AFTER environment transition
-            reward, (cov, fair, comm, obs_pen, move_eff) = env._calculate_reward(prev_positions=obs)
-
-            # ✅ Log scores for plotting/analysis later
+            # Store log scores per step
             score_log['coverage'].append(cov)
             score_log['fairness'].append(fair)
-            score_log['comm_penalty'].append(comm)
-            score_log['obstacle_penalty'].append(obs_pen)
-            score_log['movement'].append(move_eff)
+            score_log['energy_efficiency'].append(energy_eff)
+            score_log['comm_penalty_per_uav'].append(comm_per_uav)
 
-            # ✅ Prepare reward and done per agent (even if shared reward)
-            rewards = np.full((num_agents,), reward)  # Team reward, structure future-proof
+            # Prepare reward and done per agent (even if shared reward)
+            rewards = np.copy(reward_per_uav) 
             dones = np.full((num_agents,), done)
 
             # Store experience in buffer
@@ -56,22 +56,29 @@ def train():
             maddpg.update(batch_size)
 
             obs = next_obs
-            episode_reward += reward
+            episode_reward += np.sum(rewards)
             if done:
                 break
         
-        episode_rewards.append(episode_reward)
+        # Store rewards and scores per episode
+        episode_rewards.append(episode_reward / step)
+        score_log_per_episode['coverage'].append(np.mean(score_log['coverage']))
+        score_log_per_episode['fairness'].append(np.mean(score_log['fairness']))
+        score_log_per_episode['energy_efficiency'].append(np.mean(score_log['energy_efficiency']))
+        score_log_per_episode['comm_penalty_per_uav'].append(np.mean(np.stack(score_log['comm_penalty_per_uav'], axis=0), axis=0))
 
         # Logging
-        if episode % 10 == 0:
+        log_freq = env.log_freq
+        if episode % log_freq == 0:
             elapsed_time = time.time() - start_time
+            comm_penalty_avg_per_uav = np.mean(np.stack(score_log_per_episode['comm_penalty_per_uav'][-log_freq:], axis=0), axis=0)
+            comm_penalty_avg_per_uav = np.round(comm_penalty_avg_per_uav,decimals=3)
             print(f"🔄 Episode {episode} | "
-                  f"Total Reward: {episode_reward:.3f} | "
-                  f"Coverage Avg: {np.mean(score_log['coverage'][-max_steps:]):.3f} | "
-                  f"Fairness Avg: {np.mean(score_log['fairness'][-max_steps:]):.3f} | "
-                  f"Comm Penalty Avg: {np.mean(score_log['comm_penalty'][-max_steps:]):.3f} | "
-                  f"Obstacle Penalty Avg: {np.mean(score_log['obstacle_penalty'][-max_steps:]):.3f} | "
-                  f"Movement Eff: {np.mean(score_log['movement'][-max_steps:]):.3f} | "
+                  f"Total Reward: {np.mean(episode_rewards[-log_freq:]):.3f} | "
+                  f"Coverage Avg: {np.mean(score_log_per_episode['coverage'][-log_freq:]):.3f} | "
+                  f"Fairness Avg: {np.mean(score_log_per_episode['fairness'][-log_freq:]):.3f} | "
+                  f"Energy Efficiency Avg: {np.mean(score_log_per_episode['energy_efficiency'][-log_freq:]):.3f} | "
+                  f"Comm Penalty Avg: {comm_penalty_avg_per_uav} | "
                   f"Elapsed Time: {elapsed_time:.2f}s")
 
     print("\n✅ Training Completed!\n")
