@@ -1,12 +1,12 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
-from agents import ActorNetwork, CriticNetwork, soft_update, OUNoise
+from agents import ActorNetwork, CriticNetwork, soft_update, GaussianNoise
 from buffer import ReplayBuffer
 
 
 class MADDPG:
-    def __init__(self, num_agents, obs_dim, action_dim, hidden_dim=160, device="cpu"):
+    def __init__(self, num_agents, obs_dim, action_dim, hidden_dim=160, gamma=0.83, tau=0.01, device="cpu"):
         self.num_agents = num_agents
         self.obs_dim = obs_dim
         self.action_dim = action_dim
@@ -29,11 +29,11 @@ class MADDPG:
         self.buffer = ReplayBuffer(max_size=100000, num_agents=num_agents, obs_dim=obs_dim, action_dim=action_dim)
 
         # Noise for exploration
-        self.noise = [OUNoise(action_dim) for _ in range(num_agents)]
+        self.noise = [GaussianNoise(action_dim) for _ in range(num_agents)]
 
         # Hyperparameters
-        self.gamma = 0.95
-        self.tau = 0.01
+        self.gamma = gamma
+        self.tau = tau
 
     def _init_target_networks(self):
         for target_actor, actor in zip(self.target_actors, self.actors):
@@ -121,8 +121,15 @@ class MADDPG:
             soft_update(self.target_critics[i], self.critics[i], self.tau)
             soft_update(self.target_actors[i], self.actors[i], self.tau)
 
+        # Decay noise scale after each update
+        self.decay_noise()
+
     def store(self, obs, actions, rewards, next_obs, dones):
         self.buffer.add(obs, actions, rewards, next_obs, dones)
+
+    def decay_noise(self):
+        for n in self.noise:
+            n.decay()
 
     def reset_noise(self):
         for n in self.noise:
