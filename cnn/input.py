@@ -82,8 +82,7 @@ def export(data_points, output_path):
     print(f"Data points exported to {output_path}")
 
 
-def input_image(is_export=True):
-    image_path = "initial_state.png"  # Replace with your image path
+def input_image(image_path, is_export=True):
     export_path = "decoded_points.py"  # Replace with your export path
     data_points = decode_grayscale_image(image_path)
     if is_export:
@@ -97,8 +96,3 @@ def random_state_generator(num_points, is_export=True):
     if is_export:
         export(poi_data, export_path)
     return poi_data
-
-
-if __name__ == "__main__":
-    # Example usage
-    random_state_generator(25, is_export=True)
