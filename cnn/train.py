@@ -1,5 +1,5 @@
 # TODO: plot graphs of the results stored
-# TODO:save model periodically
+# TODO: save model periodically
 import numpy as np
 import time
 from env import Env as MultiUAVEnv

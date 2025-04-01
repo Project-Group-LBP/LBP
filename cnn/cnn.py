@@ -45,23 +45,3 @@ class CNN(nn.Module):
         x = self.bn(x)
         x = x.reshape(x.size(0), -1)  # Flatten with shape compatibility
         return x
-
-
-class ActorNetwork(nn.Module):
-    def __init__(self, input_channels=3, action_dim=2, hidden_dim=600):
-        super(ActorNetwork, self).__init__()
-
-        # CNN feature extractor
-        self.cnn = CNN(input_channels)
-        feature_dim = self.cnn._calculate_conv_output_dim()
-
-        # MLP layers
-        self.fc1 = nn.Linear(feature_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, action_dim)
-
-    def forward(self, x):
-        features = self.cnn(x)
-        x = F.relu(self.fc1(features))
-        # Output actions in [-1, 1] range using tanh
-        actions = torch.tanh(self.fc2(x))
-        return actions

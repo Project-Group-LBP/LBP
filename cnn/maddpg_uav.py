@@ -1,8 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
-from cnn import ActorNetwork as CNNActorNetwork
-from agents import CriticNetwork, soft_update, GaussianNoise
+from agents import ActorNetwork as CNNActorNetwork, CriticNetwork, soft_update, GaussianNoise
 from buffer import ReplayBuffer
 
 
