@@ -90,8 +90,15 @@ def input_image(image_path, is_export=True):
     return data_points
 
 
-def random_state_generator(num_points, is_export=True):
+def random_points_generator(num_points, is_export=True):
     poi_data = np.random.random(size=(num_points, 2))
+    export_path = "decoded_points.py"  # Replace with your export path
+    if is_export:
+        export(poi_data, export_path)
+    return poi_data
+
+def uniform_points_generator(map_width = 16, is_export = True):
+    poi_data = np.array([[x, y] for x in range(0, map_width, 2) for y in range(0, map_width, 2)]) / map_width
     export_path = "decoded_points.py"  # Replace with your export path
     if is_export:
         export(poi_data, export_path)

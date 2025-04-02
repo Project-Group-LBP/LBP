@@ -12,11 +12,10 @@ wall_width = 4
 wall_value = -1
 channel = 3
 num_uavs = 6
-init_positions = [[4, 4], [12, 4], [4, 12], [12, 12], [8, 8], [8, 4]]
 max_energy = 500
 num_action = 2
 hover_energy = 0.2
-comm_range = 1.5
+comm_range = 3.0
 max_distance = 1.0
 wall_penalty = -1.0
 comm_broken_penalty = -1.0
@@ -36,6 +35,7 @@ class Env:
             os.makedirs(self.img_path)
 
         # UAV configuration
+        self.init_positions = np.random.rand(num_uavs, 2) * map_width
         self.num_uavs = num_uavs
         self.observation_space = [spaces.Box(low=-1, high=1, shape=(self.width, self.height, self.channels)) for _ in range(self.num_uavs)]
         self.action_space = [spaces.Box(low=-1, high=1, shape=(num_action,)) for _ in range(self.num_uavs)]
@@ -64,7 +64,7 @@ class Env:
         self.total_points = len(self.datas)
         self.coverage_map = np.zeros(self.total_points, dtype=bool)
         self.visit_count = np.zeros(self.total_points, dtype=np.int16)
-        self.uav_pos = copy.deepcopy(init_positions)
+        self.uav_pos = copy.deepcopy(self.init_positions)
 
         self._init_data_map = np.zeros((self.width, self.height)).astype(np.float16)
         self._init_position_map = np.zeros((num_uavs, self.width, self.height)).astype(np.float16)
@@ -76,7 +76,7 @@ class Env:
 
         # Draw initial UAV positions
         for i_n in range(self.num_uavs):
-            self._draw_UAV(init_positions[i_n][0], init_positions[i_n][1], 1.0, self._init_position_map[i_n])
+            self._draw_UAV(self.init_positions[i_n][0], self.init_positions[i_n][1], 1.0, self._init_position_map[i_n])
 
     def _transform_coords(self, x, y):
         """Transform logical coordinates to visual coordinates"""
@@ -177,10 +177,10 @@ class Env:
         jain_fairness_index = square_of_sum / (sum_of_square * float(len(values)))
         return jain_fairness_index
 
-    def __get_reward(self, new_visit_count, old_visit_count, energy_consumed, fairness):
+    def __get_reward(self, new_visit_count, energy_consumed, fairness):
         """Calculate reward"""
         if self.step_count > 1:
-            coverage_incr = np.sum((new_visit_count / self.step_count) - (old_visit_count / (self.step_count - 1)))
+            coverage_incr = np.sum((new_visit_count / self.step_count) - (self.visit_count / (self.step_count - 1)))
         else:
             coverage_incr = np.sum(new_visit_count / self.step_count)
         return fairness * coverage_incr / (energy_consumed + self.epsilon)
@@ -206,9 +206,6 @@ class Env:
             distance_ratio = (action[1] + 1) / 2  # Map from [-1,1] to [0,1]
 
             distance = distance_ratio * self.max_dist
-            # Limit movement based on available energy
-            if self.energy[i] < distance:
-                distance = distance_ratio * self.energy[i]
             delta_x = distance * np.cos(angle)
             delta_y = distance * np.sin(angle)
             new_x = self.uav_pos[i][0] + delta_x
@@ -265,7 +262,7 @@ class Env:
         normalized_energy = total_energy_consumed / (self.num_uavs * self.step_count * self.factor * self.max_dist)
         avg_energy_eff = (fairness * avg_coverage_score) / (normalized_energy + self.epsilon)
 
-        common_reward = self.__get_reward(new_visit_count, self.visit_count, energy_consumed, fairness)
+        common_reward = self.__get_reward(new_visit_count, energy_consumed, fairness)
         for i in range(self.num_uavs):
             if not self.dn[i]:
                 reward[i] += common_reward
@@ -290,7 +287,7 @@ class Env:
         self.penalty.fill(0)
         self.coverage_map.fill(False)
         self.visit_count.fill(0)
-        self.uav_pos = copy.deepcopy(init_positions)
+        self.uav_pos = copy.deepcopy(self.init_positions)
 
         self.__init_state()
         return self.state

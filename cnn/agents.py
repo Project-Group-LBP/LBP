@@ -1,23 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from cnn import CNN
 import numpy as np
+from cnn import CNN
 
-
-# Fully connected MLP for Actor
-# class ActorNetwork(nn.Module):
-#     def __init__(self, obs_dim, action_dim, hidden_dim):
-#         super(ActorNetwork, self).__init__()
-#         self.fc1 = nn.Linear(obs_dim, hidden_dim)
-#         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-#         self.out = nn.Linear(hidden_dim, action_dim)
-
-#     def forward(self, obs):
-#         x = F.relu(self.fc1(obs))
-#         x = F.relu(self.fc2(x))
-#         action = torch.tanh(self.out(x))
-#         return action
 
 class ActorNetwork(nn.Module):
     def __init__(self, input_channels=3, action_dim=2, hidden_dim=600):
@@ -25,22 +11,23 @@ class ActorNetwork(nn.Module):
 
         # CNN feature extractor
         self.cnn = CNN(input_channels)
-        feature_dim = self.cnn._calculate_conv_output_dim()
+        feature_dim = self.cnn.feature_dim
 
         # MLP layers
         self.fc1 = nn.Linear(feature_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, action_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.out = nn.Linear(hidden_dim, action_dim)
 
     def forward(self, x):
         features = self.cnn(x)
         x = F.relu(self.fc1(features))
-        # Output actions in [-1, 1] range using tanh
-        actions = torch.tanh(self.fc2(x))
+        x = F.relu(self.fc2(x))
+        actions = torch.tanh(self.out(x))  # Output actions in [-1, 1] range
         return actions
 
 
+# Centralized Critic: takes joint observations and joint actions
 class CriticNetwork(nn.Module):
-    '''Centralized Critic: takes joint observations and joint actions'''
     def __init__(self, total_obs_dim, total_action_dim, hidden_dim):
         super(CriticNetwork, self).__init__()
         self.fc1 = nn.Linear(total_obs_dim + total_action_dim, hidden_dim)

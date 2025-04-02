@@ -1,6 +1,7 @@
 # TODO: plot graphs of the results stored
 # TODO: save model periodically
 import numpy as np
+import argparse
 import time
 from env import Env as MultiUAVEnv
 import input
@@ -83,4 +84,12 @@ def train(use_image_init=False, image_path=None):
 
 
 if __name__ == "__main__":
-    train(use_image_init=True, image_path="initial_state.png")
+    parser = argparse.ArgumentParser(description="Train MADDPG UAV")
+    parser.add_argument("--use_img", action="store_true", help="Use image initialization")
+    parser.add_argument("--img_path", type=str, help="Path to the initial state image (required if --use_img is specified)")
+    args = parser.parse_args()
+
+    if args.use_img and not args.img_path:
+        parser.error("--img_path is required when using --use_img")
+
+    train(use_image_init=args.use_img, image_path=args.img_path)

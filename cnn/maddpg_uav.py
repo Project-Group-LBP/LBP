@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
-from agents import ActorNetwork as CNNActorNetwork, CriticNetwork, soft_update, GaussianNoise
+from agents import ActorNetwork, CriticNetwork, soft_update, GaussianNoise
 from buffer import ReplayBuffer
 
 
@@ -15,8 +15,8 @@ class MADDPG:
         self.grid_width, self.grid_height, self.input_channels = self.obs_dim
 
         # Initialize actor networks
-        self.actors = [CNNActorNetwork(input_channels=self.input_channels, action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
-        self.target_actors = [CNNActorNetwork(input_channels=self.input_channels, action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
+        self.actors = [ActorNetwork(input_channels=self.input_channels, action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
+        self.target_actors = [ActorNetwork(input_channels=self.input_channels, action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
         self.actor_optimizers = [torch.optim.Adam(actor.parameters(), lr=0.001) for actor in self.actors]
 
         # Calculate feature dimension for critic
