@@ -1,6 +1,7 @@
 import torch
-import numpy as np
 import torch.nn.functional as F
+import numpy as np
+import os
 from agents import ActorNetwork, CriticNetwork, soft_update, GaussianNoise
 from buffer import ReplayBuffer
 
@@ -171,3 +172,41 @@ class MADDPG:
     def reset_noise(self):
         for n in self.noise:
             n.reset()
+
+    def save(self, path):
+        """
+        Save the models and optimizers for all agents
+        Args:
+            path (str): Directory path to save the models
+        """
+        for i in range(self.num_agents):
+            # Save actor, target actor, and actor optimizer
+            torch.save({"actor": self.actors[i].state_dict(), "target_actor": self.target_actors[i].state_dict(), "actor_optimizer": self.actor_optimizers[i].state_dict(), "critic": self.critics[i].state_dict(), "target_critic": self.target_critics[i].state_dict(), "critic_optimizer": self.critic_optimizers[i].state_dict()}, f"{path}/agent_{i}.pth")
+
+    def load(self, path):
+        """
+        Load the models and optimizers for all agents
+        Args:
+            path (str): Directory path to load the models from
+        """
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"❌ Model directory not found: {path}")
+
+        for i in range(self.num_agents):
+            agent_path = f"{path}/agent_{i}.pth"
+            if not os.path.exists(agent_path):
+                raise FileNotFoundError(f"❌ Model file not found: {agent_path}")
+
+            checkpoint = torch.load(agent_path, map_location=self.device)
+
+            # Load actor networks and optimizer
+            self.actors[i].load_state_dict(checkpoint["actor"])
+            self.target_actors[i].load_state_dict(checkpoint["target_actor"])
+            self.actor_optimizers[i].load_state_dict(checkpoint["actor_optimizer"])
+
+            # Load critic networks and optimizer
+            self.critics[i].load_state_dict(checkpoint["critic"])
+            self.target_critics[i].load_state_dict(checkpoint["target_critic"])
+            self.critic_optimizers[i].load_state_dict(checkpoint["critic_optimizer"])
+
+        print(f"📥 Models loaded successfully from {path}")
