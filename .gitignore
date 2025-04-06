@@ -2,3 +2,6 @@ __pycache__/
 .vscode/
 env_lbp/
 new.py
+train_state_images/
+sample_results/
+saved_models/

@@ -98,11 +98,11 @@ def train(use_image_init=False, image_path=None):
             print(f"🔄 Episode {episode} | " f"Total Reward: {np.mean(episode_rewards[-log_freq:]):.3f} | " f"Coverage Avg: {np.mean(score_log_per_episode['coverage'][-log_freq:]):.3f} | " f"Fairness Avg: {np.mean(score_log_per_episode['fairness'][-log_freq:]):.3f} | " f"Energy Efficiency Avg: {np.mean(score_log_per_episode['energy_efficiency'][-log_freq:]):.3f} | " f"Penalty Avg: {penalty_avg} | " f"Elapsed Time: {elapsed_time:.2f}s")
 
         # Save models periodically
-        if episode % save_freq == 0:
-            save_models(maddpg, episode)
+        # if episode % save_freq == 0:
+            # save_models(maddpg, episode)
 
     # Save final models
-    save_models(maddpg, "final")
+    # save_models(maddpg, "final")
     print("\n✅ Training Completed!\n")
 
 

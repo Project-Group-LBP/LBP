@@ -21,7 +21,8 @@ max_distance = 3.0
 wall_penalty = -10.0
 comm_broken_penalty = -1.0
 epsilon = 1e-4
-factor = 1.0 / 3.0
+energy_factor = 1.0 / 3.0
+entropy_factor = 0.1
 
 
 class Env:
@@ -47,7 +48,8 @@ class Env:
         self.comm_range = comm_range
         self.cov_range = cov_range
         self.max_dist = max_distance
-        self.factor = factor  # Energy needed per unit distance moved
+        self.entropy_factor = entropy_factor  # Entropy factor for exploration
+        self.energy_factor = energy_factor  # Energy needed per unit distance moved
         self.epsilon = epsilon  # A small value for reference
         self.hover_energy = hover_energy  # Energy needed for hovering
         self.p_wall = wall_penalty
@@ -82,7 +84,7 @@ class Env:
 
     def _transform_coords(self, x, y):
         """Transform logical coordinates to visual coordinates"""
-        return int(4 * x + wall_width * 2), int(4 * y + wall_width * 2)
+        return 4 * int(x) + wall_width * 2, 4 * int(y) + wall_width * 2
 
     def _draw_square(self, x, y, width, height, value, grid, add=False):
         for i in range(x, x + width):
@@ -148,21 +150,29 @@ class Env:
 
     def save_heat_map_image(self, name):
         cov_data = self.state[0][:, :, 2].copy()
-        # Create RGB representation
-        rgb_img = np.ones((self.width, self.height, 3), dtype=np.float64)  # Initialize with white
+        # Create RGB representation - initialize with black
+        rgb_img = np.zeros((self.width, self.height, 3), dtype=np.float64)
         
-        # Blue to cyan to green to yellow to red colormap
-        mask = cov_data > 0.01
-        rgb_img[mask, 0] = np.where(cov_data[mask] > 0.75, 1.0, 1.33 * cov_data[mask])  # Red
-        rgb_img[mask, 1] = np.where(cov_data[mask] < 0.75, cov_data[mask] * 1.33, 1.33 - 1.33 * cov_data[mask])  # Green
-        rgb_img[mask, 2] = np.where(cov_data[mask] < 0.75, 1.0, 0.0)  # Blue
+        # Make data points with zero coverage white
+        data_points_mask = self._init_data_map > 0  # Mask for all data point locations
+        zero_coverage_mask = (cov_data <= 0.01) & data_points_mask
+        rgb_img[zero_coverage_mask] = 1.0  # Set to white
+        
+        # Blue to cyan to green to yellow to red colormap for covered points
+        coverage_mask = cov_data > 0.01
+        # Scale coverage from light blue to dark blue
+        blue_intensity = 1.0 - (0.7 * cov_data[coverage_mask])  # Higher coverage = darker blue
+        
+        rgb_img[coverage_mask, 0] = blue_intensity  # Red channel
+        rgb_img[coverage_mask, 1] = blue_intensity  # Green channel
+        rgb_img[coverage_mask, 2] = 1.0  # Blue channel always at maximum
         
         # Convert to uint8 for PIL
         img = (rgb_img * 255).clip(0, 255).astype(np.uint8)
         img = Image.fromarray(img, "RGB")
+        img.save(os.path.join(self.img_path, f"{name}.png"), "png") 
         
-        img.save(os.path.join(self.img_path, f"{name}.png"), "png")
-
+    
     def __init_state(self):
         """Initialize state"""
         state = []
@@ -196,13 +206,21 @@ class Env:
         jain_fairness_index = square_of_sum / (sum_of_square * float(len(values)))
         return jain_fairness_index
 
-    def __get_reward(self, new_visit_count, energy_consumed, fairness):
+    def __get_reward(self, new_visit_count, energy_consumed, fairness, new_positions):
         """Calculate reward"""
         if self.step_count > 1:
             coverage_incr = np.sum((new_visit_count / self.step_count) - (self.visit_count / (self.step_count - 1)))
         else:
             coverage_incr = np.sum(new_visit_count / self.step_count)
-        return fairness * coverage_incr / (energy_consumed + self.epsilon)
+
+        # Calculate the grid entropy 
+        grid = np.zeros((self.map_width, self.map_height))
+        for x, y in new_positions:
+            grid[int(x)][int(y)] += 1
+        prob = grid / np.sum(grid)
+        entropy = np.sum(prob * np.log(prob + 1e-6))
+
+        return ((fairness * coverage_incr) / (energy_consumed + self.epsilon)) - (entropy_factor * entropy)
 
     def step(self, action_list):
         """Process one step of the environment given agent actions"""
@@ -221,8 +239,8 @@ class Env:
                 continue
 
             action = actions[i]
-            angle = (action[0] + 1) * np.pi  # Map from [-1,1] to [0,2π]
-            distance_ratio = (action[1] + 1) / 2  # Map from [-1,1] to [0,1]
+            angle = action[0] * 2 * np.pi  # Map from [0,1] to [0,2π]
+            distance_ratio = action[1]  # Map from [0,1] to [0,1]
 
             distance = distance_ratio * self.max_dist
             delta_x = distance * np.cos(angle)
@@ -250,7 +268,7 @@ class Env:
                         new_visit_count[index] += 1
 
             # Consume energy
-            energy_consumed_uav = min(self.factor * distance + self.hover_energy * (1 - distance_ratio), self.energy[i])
+            energy_consumed_uav = min(self.energy_factor * distance + self.hover_energy * (1 - distance_ratio), self.energy[i])
             self.energy[i] -= energy_consumed_uav
             energy_consumed += energy_consumed_uav
 
@@ -275,13 +293,13 @@ class Env:
         # Calculate common reward and metrics
         done = sum(self.dn) == self.num_uavs  # Done if all UAVs are depleted
         avg_coverage_score = np.mean(new_visit_count / self.step_count)
-        fairness = self.__get_fairness(new_visit_count)
+        fairness = self.__get_fairness(new_visit_count.astype(np.float64))
 
         total_energy_consumed = np.sum(self.max_energy - self.energy)  # Cumulative energy
-        normalized_energy = total_energy_consumed / (self.num_uavs * self.step_count * self.factor * self.max_dist)
+        normalized_energy = total_energy_consumed / (self.num_uavs * self.step_count * self.energy_factor * self.max_dist)
         avg_energy_eff = (fairness * avg_coverage_score) / (normalized_energy + self.epsilon)
 
-        common_reward = self.__get_reward(new_visit_count, energy_consumed, fairness)
+        common_reward = self.__get_reward(new_visit_count, energy_consumed, fairness, new_positions)
         for i in range(self.num_uavs):
             if not self.dn[i]:
                 reward[i] += common_reward

@@ -2,8 +2,10 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import os
-from agents import ActorNetwork, CriticNetwork, soft_update, GaussianNoise
+from agents import ActorNetwork, QuantileCriticNetwork, soft_update, GaussianNoise
 from buffer import ReplayBuffer
+
+alpha = 0.5  # CVaR quantile level
 
 
 class MADDPG:
@@ -25,8 +27,8 @@ class MADDPG:
         self.total_action_dim = num_agents * action_dim
 
         # Initialize critic networks
-        self.critics = [CriticNetwork(self.total_feature_dim, self.total_action_dim, hidden_dim).to(device) for _ in range(num_agents)]
-        self.target_critics = [CriticNetwork(self.total_feature_dim, self.total_action_dim, hidden_dim).to(device) for _ in range(num_agents)]
+        self.critics = [QuantileCriticNetwork(self.total_feature_dim, self.total_action_dim, hidden_dim).to(device) for _ in range(num_agents)]
+        self.target_critics = [QuantileCriticNetwork(self.total_feature_dim, self.total_action_dim, hidden_dim).to(device) for _ in range(num_agents)]
         self.critic_optimizers = [torch.optim.Adam(critic.parameters(), lr=critic_lr) for critic in self.critics]
 
         # Initialize target networks
@@ -121,16 +123,22 @@ class MADDPG:
             next_actions_tensor = torch.stack(next_actions, dim=1)
             next_actions_flat = next_actions_tensor.view(batch_size, -1)
 
+            # Compute predicted quantile distribution
+            critic_output = self.critics[i](next_obs_flat, next_actions_flat)  # [batch_size, num_quantiles]
+            critic_sorted, _ = torch.sort(critic_output, dim=1)
+            cvar_pred = torch.mean(critic_sorted[:, :int(alpha * critic_output.size(1))], dim=1, keepdim=True)  # [batch_size, 1]
+
             # Calculate target Q-value
             with torch.no_grad():
-                target_q = self.target_critics[i](next_obs_flat, next_actions_flat)
-                target_value = rew_tensor[:, i].unsqueeze(1) + self.gamma * target_q * (1 - done_tensor[:, i].unsqueeze(1))
+                target_output = self.target_critics[i](next_obs_flat, next_actions_flat)
+                target_sorted, _ = torch.sort(target_output, dim=1)
+                cvar_target = torch.mean(target_sorted[:, :int(alpha * critic_output.size(1))], dim=1, keepdim=True)
 
             # Current Q-value
-            current_q = self.critics[i](obs_flat, act_flat)
+            critic_loss = F.mse_loss(cvar_pred, cvar_target)
 
             # Critic loss
-            critic_loss = F.mse_loss(current_q, target_value)
+            critic_loss = F.mse_loss(cvar_pred, cvar_target)
             self.critic_optimizers[i].zero_grad()
             critic_loss.backward()
             self.critic_optimizers[i].step()
