@@ -1,4 +1,5 @@
 # TODO: plot graphs of the results stored
+# TODO: decide which saved model to use for testing
 import numpy as np
 import argparse
 import time
@@ -7,7 +8,7 @@ import input
 from maddpg_uav import MADDPG
 
 
-def test(use_image_init=False, image_path=None):
+def test(load_dir, use_image_init=False, image_path=None):
     if use_image_init and image_path:
         input.input_image(image_path)
     env = MultiUAVEnv(image_init=use_image_init, log_dir="./test_state_images")
@@ -16,11 +17,11 @@ def test(use_image_init=False, image_path=None):
     action_dim = 2
 
     maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim, device="cpu")
-    maddpg.load()
+    maddpg.load(load_dir)
 
-    num_episodes = 20  # 1000
-    max_steps = 100  # 1000
-    log_freq = 1  # 100
+    num_episodes = 20
+    max_steps = 100  # 500
+    log_freq = 1
 
     # Initialize for analysis/plotting
     score_log_per_episode = {"coverage": [], "fairness": [], "energy_efficiency": [], "penalty_per_uav": []}
@@ -81,4 +82,5 @@ if __name__ == "__main__":
     if args.use_img and not args.img_path:
         parser.error("--img_path is required when using --use_img")
 
-    test(use_image_init=args.use_img, image_path=args.img_path)
+    load_dir = "saved_models/maddpg_episode_final"
+    test(load_dir=load_dir, use_image_init=args.use_img, image_path=args.img_path)

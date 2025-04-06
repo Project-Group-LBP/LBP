@@ -14,13 +14,14 @@ channel = 3
 num_uavs = 6
 max_energy = 500
 num_action = 2
-hover_energy = 0.2
-comm_range = 3.0
-max_distance = 1.0
-wall_penalty = -1.0
+hover_energy = 0.5
+comm_range = 6.0
+cov_range = 3.0
+max_distance = 3.0
+wall_penalty = -10.0
 comm_broken_penalty = -1.0
 epsilon = 1e-4
-factor = 0.1
+factor = 1.0 / 3.0
 
 
 class Env:
@@ -44,6 +45,7 @@ class Env:
         # Movement and collection parameters
         self.max_energy = max_energy
         self.comm_range = comm_range
+        self.cov_range = cov_range
         self.max_dist = max_distance
         self.factor = factor  # Energy needed per unit distance moved
         self.epsilon = epsilon  # A small value for reference
@@ -115,7 +117,7 @@ class Env:
         x, y = self._transform_coords(x, y)
         self._draw_square(x, y, 4, 4, 0, grid)
 
-    def save_image(self, name=None, include_uavs=True):
+    def save_state_image(self, name=None, include_uavs=True):
         grid = self._init_data_map.copy()
         max_value = np.max(grid)
         if max_value > 0:  # Normalize grid to [0, 1] range
@@ -142,6 +144,23 @@ class Env:
         img = Image.fromarray(img, "RGB")
         if name is None:
             name = "initial_state"
+        img.save(os.path.join(self.img_path, f"{name}.png"), "png")
+
+    def save_heat_map_image(self, name):
+        cov_data = self.state[0][:, :, 2].copy()
+        # Create RGB representation
+        rgb_img = np.ones((self.width, self.height, 3), dtype=np.float64)  # Initialize with white
+        
+        # Blue to cyan to green to yellow to red colormap
+        mask = cov_data > 0.01
+        rgb_img[mask, 0] = np.where(cov_data[mask] > 0.75, 1.0, 1.33 * cov_data[mask])  # Red
+        rgb_img[mask, 1] = np.where(cov_data[mask] < 0.75, cov_data[mask] * 1.33, 1.33 - 1.33 * cov_data[mask])  # Green
+        rgb_img[mask, 2] = np.where(cov_data[mask] < 0.75, 1.0, 0.0)  # Blue
+        
+        # Convert to uint8 for PIL
+        img = (rgb_img * 255).clip(0, 255).astype(np.uint8)
+        img = Image.fromarray(img, "RGB")
+        
         img.save(os.path.join(self.img_path, f"{name}.png"), "png")
 
     def __init_state(self):
@@ -225,7 +244,7 @@ class Env:
 
             # Cover points within range
             for index, dis_sq in enumerate(_dis_sq):
-                if dis_sq <= self.comm_range**2:
+                if dis_sq <= self.cov_range**2:
                     if not self.coverage_map[index]:
                         self.coverage_map[index] = True
                         new_visit_count[index] += 1

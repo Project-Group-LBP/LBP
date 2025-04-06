@@ -7,7 +7,7 @@ from buffer import ReplayBuffer
 
 
 class MADDPG:
-    def __init__(self, num_agents, obs_shape, action_dim, hidden_dim=160, gamma=0.83, tau=0.01, device="cpu"):
+    def __init__(self, num_agents, obs_shape, action_dim, hidden_dim=160, gamma=0.83, tau=0.01, actor_lr=1e-3, critic_lr=1e-3, device="cpu"):
         self.num_agents = num_agents
         self.device = device
 
@@ -16,9 +16,9 @@ class MADDPG:
         self.grid_width, self.grid_height, self.input_channels = self.obs_dim
 
         # Initialize actor networks
-        self.actors = [ActorNetwork(input_channels=self.input_channels, action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
-        self.target_actors = [ActorNetwork(input_channels=self.input_channels, action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
-        self.actor_optimizers = [torch.optim.Adam(actor.parameters(), lr=0.001) for actor in self.actors]
+        self.actors = [ActorNetwork(action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
+        self.target_actors = [ActorNetwork(action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
+        self.actor_optimizers = [torch.optim.Adam(actor.parameters(), lr=actor_lr) for actor in self.actors]
 
         # Calculate feature dimension for critic
         self.total_feature_dim = num_agents * self.actors[0].cnn.feature_dim
@@ -27,13 +27,13 @@ class MADDPG:
         # Initialize critic networks
         self.critics = [CriticNetwork(self.total_feature_dim, self.total_action_dim, hidden_dim).to(device) for _ in range(num_agents)]
         self.target_critics = [CriticNetwork(self.total_feature_dim, self.total_action_dim, hidden_dim).to(device) for _ in range(num_agents)]
-        self.critic_optimizers = [torch.optim.Adam(critic.parameters(), lr=0.002) for critic in self.critics]
+        self.critic_optimizers = [torch.optim.Adam(critic.parameters(), lr=critic_lr) for critic in self.critics]
 
         # Initialize target networks
         self._init_target_networks()
 
         # Replay buffer
-        self.buffer = ReplayBuffer(max_size=100000, num_agents=num_agents, obs_dim=self.obs_dim, action_dim=action_dim)
+        self.buffer = ReplayBuffer(max_size=1000000, num_agents=num_agents, obs_dim=self.obs_dim, action_dim=action_dim)
 
         # Exploration noise
         self.noise = [GaussianNoise(action_dim) for _ in range(num_agents)]

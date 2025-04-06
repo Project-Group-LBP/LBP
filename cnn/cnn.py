@@ -27,12 +27,6 @@ class CNN(nn.Module):
         if not isinstance(x, torch.Tensor):
             x = torch.tensor(x, dtype=torch.float32)
 
-        # Standardize dimensions
-        if len(x.shape) == 3:  # (height, width, channels)
-            x = x.permute(2, 0, 1).unsqueeze(0)  # (1, channels, height, width)
-        elif len(x.shape) == 4 and x.shape[3] == 3:  # (batch, height, width, channels)
-            x = x.permute(0, 3, 1, 2)  # (batch, channels, height, width)
-
         # Ensure x has the right dtype
         if x.dtype != torch.float32:
             x = x.float()
@@ -40,7 +34,8 @@ class CNN(nn.Module):
         # Forward pass through convolutional layers
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
+        x = self.conv3(x)
         x = self.bn(x)
+        x = F.relu(x)
         x = x.reshape(x.size(0), -1)  # Flatten with shape compatibility
         return x

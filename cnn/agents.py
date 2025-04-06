@@ -6,11 +6,11 @@ from cnn import CNN
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, input_channels=3, action_dim=2, hidden_dim=600):
+    def __init__(self, action_dim=2, hidden_dim=160):
         super(ActorNetwork, self).__init__()
 
         # CNN feature extractor
-        self.cnn = CNN(input_channels)
+        self.cnn = CNN()
         feature_dim = self.cnn.feature_dim
 
         # MLP layers
@@ -28,7 +28,7 @@ class ActorNetwork(nn.Module):
 
 # Centralized Critic: takes joint observations and joint actions
 class CriticNetwork(nn.Module):
-    def __init__(self, total_obs_dim, total_action_dim, hidden_dim):
+    def __init__(self, total_obs_dim, total_action_dim, hidden_dim=160):
         super(CriticNetwork, self).__init__()
         self.fc1 = nn.Linear(total_obs_dim + total_action_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
