@@ -3,10 +3,10 @@ import argparse
 import os
 import time
 from env import Env as MultiUAVEnv
-from maddpg_uav import MADDPG
-from input import input_image
-from logger import Logger
-from plot_logs import generate_plots
+from maddpg.maddpg_uav import MADDPG
+from logs_and_inputs.input import input_image
+from logs_and_inputs.logger import Logger
+from logs_and_inputs.plot_logs import generate_plots
 from datetime import datetime
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # will this be needed?
