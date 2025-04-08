@@ -8,6 +8,7 @@ from env import Env as MultiUAVEnv
 from maddpg_uav import MADDPG
 from logger import Logger
 from plot_logs import generate_plots
+from datetime import datetime
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # will this be needed?
 
@@ -29,17 +30,25 @@ def train(use_image_init=False, image_path=None):
     if use_image_init and image_path:
         input.input_image(image_path)
     env = MultiUAVEnv(image_init=use_image_init, log_dir="./train_state_images")
-    logger = Logger(log_dir="./train_logs")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    print(f"🚀 Training started at {timestamp}")
+
+    log_data_file_name = f"log_data_{timestamp}.json"
+    logger = Logger(
+        log_dir="./train_logs",
+        log_file_name=f"logs_{timestamp}.txt",
+        log_data_file_name=log_data_file_name,
+    )
     num_agents = env.num_uavs
     obs_dim = (env.width, env.height, env.channels)
     action_dim = 2
 
-    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim, device="cpu")
+    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim)
 
     NUM_EPISODES = 5  # 500
     MAX_STEPS = 300  # 500
     BATCH_SIZE = 32
-    LOG_FREQ = 1 # 10
+    LOG_FREQ = 1  # 10
     LEARN_FREQ = 5  # learn every 5 steps
     SAVE_FREQ = 25  # save models every 25 episodes
 
@@ -86,10 +95,10 @@ def train(use_image_init=False, image_path=None):
 
         # Store rewards and scores per episode
         episode_rewards.append(episode_reward)
-        score_log_per_episode["coverage"].append(np.mean(score_log["coverage"]))
+        score_log_per_episode["coverage"].append(score_log["coverage"][-1])
         score_log_per_episode["fairness"].append(score_log["fairness"][-1])
-        score_log_per_episode["energy_efficiency"].append(np.mean(score_log["energy_efficiency"]))
-        score_log_per_episode["penalty_per_uav"].append(np.mean(np.stack(score_log["penalty_per_uav"], axis=0), axis=0))
+        score_log_per_episode["energy_efficiency"].append(score_log["energy_efficiency"][-1])
+        score_log_per_episode["penalty_per_uav"].append(np.stack(score_log["penalty_per_uav"], axis=0)[-1])
 
         # Logging
         if episode % LOG_FREQ == 0:
@@ -108,7 +117,7 @@ def train(use_image_init=False, image_path=None):
 
     # Call the plotting function at the end of training
     print("📊 Generating plots...")
-    generate_plots(log_file='./train_logs/log_data.json', output_dir='./plots/', output_file='training_plots.png')
+    generate_plots(log_file=f"./train_logs/{log_data_file_name}", output_dir="./plots/", output_file="training_plots.png")
 
 
 if __name__ == "__main__":

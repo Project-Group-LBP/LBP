@@ -8,17 +8,26 @@ import input
 from maddpg_uav import MADDPG
 from logger import Logger
 from plot_logs import generate_plots
+from datetime import datetime
 
 def test(load_dir, use_image_init=False, image_path=None):
     if use_image_init and image_path:
         input.input_image(image_path)
     env = MultiUAVEnv(image_init=use_image_init, log_dir="./test_state_images")
-    logger = Logger(log_dir="./test_logs")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    print(f"🚀 Training started at {timestamp}")
+
+    log_data_file_name = f"log_data_{timestamp}.json"
+    logger = Logger(
+        log_dir="./test_logs",
+        log_file_name=f"logs_{timestamp}.txt",
+        log_data_file_name=log_data_file_name,
+    )
     num_agents = env.num_uavs
     obs_dim = (env.width, env.height, env.channels)
     action_dim = 2
 
-    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim, device="cpu")
+    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim)
     maddpg.load(load_dir)
 
     NUM_EPISODES = 20
@@ -37,7 +46,7 @@ def test(load_dir, use_image_init=False, image_path=None):
         maddpg.reset_noise()
 
         if episode == 1:
-            env.save_image()
+            env.save_state_image()
 
         episode_reward = 0
         score_log = {"coverage": [], "fairness": [], "energy_efficiency": [], "penalty_per_uav": []}
@@ -59,22 +68,22 @@ def test(load_dir, use_image_init=False, image_path=None):
 
         # Store rewards and scores per episode
         episode_rewards.append(episode_reward)
-        score_log_per_episode["coverage"].append(np.mean(score_log["coverage"]))
+        score_log_per_episode["coverage"].append(score_log["coverage"][-1])
         score_log_per_episode["fairness"].append(score_log["fairness"][-1])
-        score_log_per_episode["energy_efficiency"].append(np.mean(score_log["energy_efficiency"]))
-        score_log_per_episode["penalty_per_uav"].append(np.mean(np.stack(score_log["penalty_per_uav"], axis=0), axis=0))
+        score_log_per_episode["energy_efficiency"].append(score_log["energy_efficiency"][-1])
+        score_log_per_episode["penalty_per_uav"].append(np.stack(score_log["penalty_per_uav"], axis=0)[-1])
 
         # Logging
         if episode % LOG_FREQ == 0:
             elapsed_time = time.time() - start_time
-            env.save_image(f"state_epi_{episode}")
+            env.save_state_image(f"test_tate_epi_{episode}")
             logger.log_episode_metrics(episode, episode_rewards, score_log_per_episode, LOG_FREQ, elapsed_time)
 
     print("✅ Testing Completed!\n")
 
     # Call the plotting function at the end of testing
     print("📊 Generating plots...")
-    generate_plots(log_file='./test_logs/log_data.json', output_dir='./plots/', output_file='testing_plots.png')
+    generate_plots(log_file=f'./test_logs/{log_data_file_name}', output_dir='./plots/', output_file='testing_plots.png')
 
 
 if __name__ == "__main__":

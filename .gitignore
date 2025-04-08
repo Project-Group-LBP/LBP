@@ -3,6 +3,7 @@ __pycache__/
 env_lbp/
 new.py
 train_state_images/
+test_state_images/
 sample_results/
 saved_models/
 train_logs/

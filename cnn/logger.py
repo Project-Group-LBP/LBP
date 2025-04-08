@@ -3,15 +3,15 @@ import os
 import numpy as np
 
 class Logger:
-    def __init__(self, log_dir="."):
+    def __init__(self, log_dir=".", log_file_name="logs.txt", log_data_file_name="log_data.json"):
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
 
         # Plaintext log file
-        self.log_file_path = os.path.join(log_dir, "logs.txt")
+        self.log_file_path = os.path.join(log_dir, log_file_name)
         # JSON file for plotting
-        self.json_file_path = os.path.join(log_dir, "log_data.json")
-        
+        self.json_file_path = os.path.join(log_dir, log_data_file_name)
+
     def save(self, json_data):
         with open(self.json_file_path, "w") as f:
             json.dump(json_data, f, indent=4)
