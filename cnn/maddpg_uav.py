@@ -130,13 +130,13 @@ class MADDPG:
             # Compute predicted quantile distribution
             critic_output = self.critics[i](next_obs_flat, next_actions_flat)  # [batch_size, num_quantiles]
             critic_sorted, _ = torch.sort(critic_output, dim=1)
-            cvar_pred = torch.mean(critic_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True,)  # [batch_size, 1]
+            cvar_pred = torch.mean(critic_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)  # [batch_size, 1]
 
             # Calculate target Q-value
             with torch.no_grad():
                 target_output = self.target_critics[i](next_obs_flat, next_actions_flat)
                 target_sorted, _ = torch.sort(target_output, dim=1)
-                cvar_target = torch.mean(target_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True,)
+                cvar_target = torch.mean(target_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)
 
             # Current Q-value
             critic_loss = F.mse_loss(cvar_pred, cvar_target)
@@ -186,11 +186,6 @@ class MADDPG:
             n.reset()
 
     def save(self, path):
-        """
-        Save the models and optimizers for all agents
-        Args:
-            path (str): Directory path to save the models
-        """
         for i in range(self.num_agents):
             # Save actor, target actor, and actor optimizer
             torch.save(
@@ -206,11 +201,6 @@ class MADDPG:
             )
 
     def load(self, path):
-        """
-        Load the models and optimizers for all agents
-        Args:
-            path (str): Directory path to load the models from
-        """
         if not os.path.exists(path):
             raise FileNotFoundError(f"❌ Model directory not found: {path}")
 

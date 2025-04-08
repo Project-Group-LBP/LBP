@@ -57,7 +57,6 @@ def decode_grayscale_image(image_path, map_width=16, wall_width=4, threshold=0.1
     points = []
     for px, py in data_points:
         # Reverse the transformation from the env class
-        # Original transform: x, y = int(4 * x + wall_width * 2), int(4 * y + wall_width * 2)
         logical_x = (px - wall_width * 2) / 4.0
         logical_y = (py - wall_width * 2) / 4.0
 
@@ -71,10 +70,8 @@ def decode_grayscale_image(image_path, map_width=16, wall_width=4, threshold=0.1
 def export(data_points, output_path):
     # Convert to a proper list representation if it's a numpy array
     if isinstance(data_points, np.ndarray):
-        # Format as a list of lists with proper commas
         formatted_data = str([[float(x) for x in point] for point in data_points]).replace("], [", "],\n [")
     else:
-        # If it's already a list of tuples or lists
         formatted_data = str(data_points).replace("), (", "),\n (")
     with open(output_path, "w") as f:
         f.write("import numpy as np\n")
@@ -83,8 +80,8 @@ def export(data_points, output_path):
 
 
 def input_image(image_path, is_export=True):
-    export_path = "decoded_points.py"  # Replace with your export path
     data_points = decode_grayscale_image(image_path)
+    export_path = "decoded_points.py"  # Replace with your export path
     if is_export:
         export(data_points, export_path)
     return data_points
