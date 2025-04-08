@@ -27,11 +27,12 @@ class ActorNetwork(nn.Module):
 
 
 class QuantileCriticNetwork(nn.Module):
-    '''
-        Qunatile Critic Network:
-        This network takes state and action as input and outputs quantile values
-        This frmaework helps to compute CVaR loss
-    '''
+    """
+    Qunatile Critic Network:
+    This network takes state and action as input and outputs quantile values
+    This frmaework helps to compute CVaR loss
+    """
+
     def __init__(self, input_dim, action_dim, hidden_dim=128, num_quantiles=50):
         super(QuantileCriticNetwork, self).__init__()
         self.num_quantiles = num_quantiles
@@ -44,6 +45,7 @@ class QuantileCriticNetwork(nn.Module):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         return self.quantile_out(x)  # Output: [batch_size, num_quantiles]
+
 
 # Soft Target Update Utility
 def soft_update(target_net, source_net, tau):

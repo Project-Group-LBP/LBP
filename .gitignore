@@ -7,3 +7,4 @@ sample_results/
 saved_models/
 train_logs/
 test_logs/
+plots/

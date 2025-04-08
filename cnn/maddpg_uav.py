@@ -7,6 +7,7 @@ from buffer import ReplayBuffer
 
 ALPHA = 0.5  # CVaR quantile level
 
+
 class MADDPG:
     def __init__(self, num_agents, obs_shape, action_dim, hidden_dim=160, gamma=0.83, tau=0.01, actor_lr=1e-3, critic_lr=1e-3, device="cpu"):
         self.num_agents = num_agents
@@ -125,13 +126,13 @@ class MADDPG:
             # Compute predicted quantile distribution
             critic_output = self.critics[i](next_obs_flat, next_actions_flat)  # [batch_size, num_quantiles]
             critic_sorted, _ = torch.sort(critic_output, dim=1)
-            cvar_pred = torch.mean(critic_sorted[:, :int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)  # [batch_size, 1]
+            cvar_pred = torch.mean(critic_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)  # [batch_size, 1]
 
             # Calculate target Q-value
             with torch.no_grad():
                 target_output = self.target_critics[i](next_obs_flat, next_actions_flat)
                 target_sorted, _ = torch.sort(target_output, dim=1)
-                cvar_target = torch.mean(target_sorted[:, :int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)
+                cvar_target = torch.mean(target_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)
 
             # Current Q-value
             critic_loss = F.mse_loss(cvar_pred, cvar_target)
@@ -181,21 +182,11 @@ class MADDPG:
             n.reset()
 
     def save(self, path):
-        """
-        Save the models and optimizers for all agents
-        Args:
-            path (str): Directory path to save the models
-        """
         for i in range(self.num_agents):
             # Save actor, target actor, and actor optimizer
             torch.save({"actor": self.actors[i].state_dict(), "target_actor": self.target_actors[i].state_dict(), "actor_optimizer": self.actor_optimizers[i].state_dict(), "critic": self.critics[i].state_dict(), "target_critic": self.target_critics[i].state_dict(), "critic_optimizer": self.critic_optimizers[i].state_dict()}, f"{path}/agent_{i}.pth")
 
     def load(self, path):
-        """
-        Load the models and optimizers for all agents
-        Args:
-            path (str): Directory path to load the models from
-        """
         if not os.path.exists(path):
             raise FileNotFoundError(f"❌ Model directory not found: {path}")
 
