@@ -6,54 +6,54 @@ from PIL import Image
 import os
 
 # Environment parameters
-map_width = map_height = 16
-grid_width = grid_height = 80
-wall_width = 4
-wall_value = -1
-channel = 3
-num_uavs = 6
-max_energy = 500
-num_action = 2
-hover_energy = 0.5
-comm_range = 6.0
-cov_range = 3.0
-max_distance = 3.0
-wall_penalty = -10.0
-comm_broken_penalty = -1.0
-epsilon = 1e-4
-energy_factor = 1.0 / 3.0
-entropy_factor = 0.1
+MAP_WIDTH = MAP_HEIGHT = 16
+GRID_WIDTH = GRID_HEIGHT = 80
+WALL_WIDTH = 4
+WALL_VALUE = -1
+CHANNEL = 3
+NUM_UAVS = 6
+MAX_ENERGY = 500
+NUM_ACTION = 2
+HOVER_ENERGY = 0.5
+COMM_RANGE = 6.0
+COV_RANGE = 3.0
+MAX_DISTANCE = 3.0
+WALL_PENALTY = -10.0
+COMM_PENALTY = -1.0
+EPSILON = 1e-4
+ENERGY_FACTOR = 1.0 / 3.0
+ENTROPY_FACTOR = 0.1
 
 
 class Env:
     def __init__(self, image_init=False, log_dir="."):
-        self.map_width = map_width
-        self.map_height = map_height
-        self.width = grid_width
-        self.height = grid_height
-        self.channels = channel
+        self.map_width = MAP_WIDTH
+        self.map_height = MAP_HEIGHT
+        self.width = GRID_WIDTH
+        self.height = GRID_HEIGHT
+        self.channels = CHANNEL
         self.img_path = log_dir
         if not os.path.exists(self.img_path):
             os.makedirs(self.img_path)
 
         # UAV configuration
-        self.init_positions = np.random.rand(num_uavs, 2) * map_width
-        self.num_uavs = num_uavs
+        self.num_uavs = NUM_UAVS
+        self.init_positions = np.random.rand(self.num_uavs, 2) * self.map_width
         self.observation_space = [spaces.Box(low=-1, high=1, shape=(self.width, self.height, self.channels)) for _ in range(self.num_uavs)]
-        self.action_space = [spaces.Box(low=-1, high=1, shape=(num_action,)) for _ in range(self.num_uavs)]
+        self.action_space = [spaces.Box(low=-1, high=1, shape=(NUM_ACTION,)) for _ in range(self.num_uavs)]
         self.step_count = 0
 
         # Movement and collection parameters
-        self.max_energy = max_energy
-        self.comm_range = comm_range
-        self.cov_range = cov_range
-        self.max_dist = max_distance
-        self.entropy_factor = entropy_factor  # Entropy factor for exploration
-        self.energy_factor = energy_factor  # Energy needed per unit distance moved
-        self.epsilon = epsilon  # A small value for reference
-        self.hover_energy = hover_energy  # Energy needed for hovering
-        self.p_wall = wall_penalty
-        self.p_comm = comm_broken_penalty
+        self.max_energy = MAX_ENERGY
+        self.comm_range = COMM_RANGE
+        self.cov_range = COV_RANGE
+        self.max_dist = MAX_DISTANCE
+        self.entropy_factor = ENTROPY_FACTOR  # Entropy factor for exploration
+        self.energy_factor = ENERGY_FACTOR  # Energy needed per unit distance moved
+        self.epsilon = EPSILON  # A small value for reference
+        self.hover_energy = HOVER_ENERGY  # Energy needed for hovering
+        self.p_wall = WALL_PENALTY
+        self.p_comm = COMM_PENALTY
         self.dn = [False] * self.num_uavs  # UAVs with depleted energy
         self.energy = np.ones(self.num_uavs).astype(np.float64) * self.max_energy
         self.penalty = np.zeros(self.num_uavs)
@@ -71,7 +71,7 @@ class Env:
         self.uav_pos = copy.deepcopy(self.init_positions)
 
         self._init_data_map = np.zeros((self.width, self.height)).astype(np.float16)
-        self._init_position_map = np.zeros((num_uavs, self.width, self.height)).astype(np.float16)
+        self._init_position_map = np.zeros((self.num_uavs, self.width, self.height)).astype(np.float16)
 
         # Draw walls and data points on data map
         self._draw_wall(self._init_data_map)
@@ -84,7 +84,7 @@ class Env:
 
     def _transform_coords(self, x, y):
         """Transform logical coordinates to visual coordinates"""
-        return 4 * int(x) + wall_width * 2, 4 * int(y) + wall_width * 2
+        return 4 * int(x) + WALL_WIDTH * 2, 4 * int(y) + WALL_WIDTH * 2
 
     def _draw_square(self, x, y, width, height, value, grid, add=False):
         for i in range(x, x + width):
@@ -97,15 +97,15 @@ class Env:
 
     def _draw_wall(self, grid):
         for j in range(self.height):
-            for i in range(wall_width):
-                grid[i][j] = wall_value
-            for i in range(self.height - wall_width, self.height):
-                grid[i][j] = wall_value
+            for i in range(WALL_WIDTH):
+                grid[i][j] = WALL_VALUE
+            for i in range(self.height - WALL_WIDTH, self.height):
+                grid[i][j] = WALL_VALUE
         for i in range(self.width):
-            for j in range(wall_width):
-                grid[i][j] = wall_value
-            for j in range(self.height - wall_width, self.height):
-                grid[i][j] = wall_value
+            for j in range(WALL_WIDTH):
+                grid[i][j] = WALL_VALUE
+            for j in range(self.height - WALL_WIDTH, self.height):
+                grid[i][j] = WALL_VALUE
 
     def _draw_data_point(self, x, y, grid, value=1.0):
         x, y = self._transform_coords(x, y)
@@ -220,7 +220,7 @@ class Env:
         prob = grid / np.sum(grid)
         entropy = np.sum(prob * np.log(prob + 1e-6))
 
-        return ((fairness * coverage_incr) / (energy_consumed + self.epsilon)) - (entropy_factor * entropy)
+        return ((fairness * coverage_incr) / (energy_consumed + self.epsilon)) - (self.entropy_factor * entropy)
 
     def step(self, action_list):
         """Process one step of the environment given agent actions"""

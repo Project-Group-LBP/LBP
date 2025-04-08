@@ -5,8 +5,7 @@ import os
 from agents import ActorNetwork, QuantileCriticNetwork, soft_update, GaussianNoise
 from buffer import ReplayBuffer
 
-alpha = 0.5  # CVaR quantile level
-
+ALPHA = 0.5  # CVaR quantile level
 
 class MADDPG:
     def __init__(self, num_agents, obs_shape, action_dim, hidden_dim=160, gamma=0.83, tau=0.01, actor_lr=1e-3, critic_lr=1e-3, device="cpu"):
@@ -126,13 +125,13 @@ class MADDPG:
             # Compute predicted quantile distribution
             critic_output = self.critics[i](next_obs_flat, next_actions_flat)  # [batch_size, num_quantiles]
             critic_sorted, _ = torch.sort(critic_output, dim=1)
-            cvar_pred = torch.mean(critic_sorted[:, :int(alpha * critic_output.size(1))], dim=1, keepdim=True)  # [batch_size, 1]
+            cvar_pred = torch.mean(critic_sorted[:, :int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)  # [batch_size, 1]
 
             # Calculate target Q-value
             with torch.no_grad():
                 target_output = self.target_critics[i](next_obs_flat, next_actions_flat)
                 target_sorted, _ = torch.sort(target_output, dim=1)
-                cvar_target = torch.mean(target_sorted[:, :int(alpha * critic_output.size(1))], dim=1, keepdim=True)
+                cvar_target = torch.mean(target_sorted[:, :int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)
 
             # Current Q-value
             critic_loss = F.mse_loss(cvar_pred, cvar_target)
