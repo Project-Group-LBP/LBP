@@ -1,10 +1,25 @@
 # LBP
 
+Structure of rl_algos/
+
+```
+├── ddqn.py
+├── ddqn_modified.py
+├── deep_sarsa.py
+├── dqn.py 
+├── ma-sarsa.py
+├── maddpg.py 
+├── q_learning.py
+└── sarsa.py 
+```
+
+Structure of multi_uav_coverage_maddpg/
+
 ```
 ├── env.py
 ├── test.py
 ├── train.py
-├── logs_and_inputs/
+├── utils/
 │   ├── data_points.py
 │   ├── decoded_points.py
 │   ├── input.py
@@ -17,10 +32,22 @@
     └── maddpg_uav.py
 ```
 
+---
+
+for `train.py` :
+
 ```bash
-python multi_uav_coverage/train.py # run using coordinates in data_points.py (no image input)
+cd multi_uav_coverage_maddpg
+python train.py # run using coordinates in data_points.py (no image input)
 # Or use
-python multi_uav_coverage/train.py --use_img --img_path="path_of_img_relative_to_current_dir" # (for image input)
+python train.py --use_img --img_path="path of img relative to current_dir" # (for image input)
 ```
 
-Similar syntax for `test/py`
+for `test.py` : 
+
+```bash
+cd multi_uav_coverage_maddpg
+python test.py --model_path="directory where models to be loaded are stored relative to current dir"
+```
+
+---
