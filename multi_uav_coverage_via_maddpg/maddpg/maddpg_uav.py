@@ -2,8 +2,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import os
-from agents import ActorNetwork, QuantileCriticNetwork, soft_update, GaussianNoise
-from buffer import ReplayBuffer
+from .agents import ActorNetwork, QuantileCriticNetwork, soft_update, GaussianNoise
+from .buffer import ReplayBuffer
 
 ALPHA = 0.5  # CVaR quantile level
 

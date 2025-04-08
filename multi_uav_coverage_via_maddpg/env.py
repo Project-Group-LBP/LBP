@@ -1,4 +1,4 @@
-from data_points import test_data
+from logs_and_inputs.data_points import test_data
 import copy
 import numpy as np
 from gymnasium import spaces
@@ -62,7 +62,7 @@ class Env:
         self.penalty = np.zeros(self.num_uavs)
 
         if image_init:
-            from decoded_points import decoded_data  # type: ignore
+            from logs_and_inputs.decoded_points import decoded_data  # type: ignore
 
             self.datas = np.reshape(decoded_data, (-1, 2)).astype(np.float16) * self.map_width
         else:
