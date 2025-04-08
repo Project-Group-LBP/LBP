@@ -42,4 +42,4 @@ def generate_plots(log_file="./train_logs/log_data.json", output_dir="./plots/",
     plt.savefig(output_file_name)
     plt.close()
 
-    print(f"📈 Plots saved to {output_file_name}")
+    print(f"📈 Plots saved to {output_file_name}\n")

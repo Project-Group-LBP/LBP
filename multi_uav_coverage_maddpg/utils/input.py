@@ -76,7 +76,7 @@ def export(data_points, output_path):
     with open(output_path, "w") as f:
         f.write("import numpy as np\n")
         f.write(f"decoded_data = {formatted_data}\n")
-    print(f"Data points exported to {output_path}")
+    print(f"Data points exported to {output_path}\n")
 
 
 def input_image(image_path, is_export=True):

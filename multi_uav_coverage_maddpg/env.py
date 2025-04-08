@@ -1,4 +1,4 @@
-from logs_and_inputs.data_points import test_data
+from utils.data_points import test_data
 import copy
 import numpy as np
 from gymnasium import spaces

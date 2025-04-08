@@ -32,22 +32,43 @@ Structure of multi_uav_coverage_maddpg/
     └── maddpg_uav.py
 ```
 
----
+## Usage Instructions
 
-for `train.py` :
+### Training
+
+To train the MADDPG model:
 
 ```bash
 cd multi_uav_coverage_maddpg
-python train.py # run using coordinates in data_points.py (no image input)
-# Or use
-python train.py --use_img --img_path="path of img relative to current_dir" # (for image input)
+
+# Basic training with default settings (500 episodes)
+python train.py
+
+# Train with custom number of episodes
+python train.py --num_episodes=1000
+
+# Train using image initialization
+python train.py --use_img --img_path="path/to/image.png"
+
+# Resume training from saved model
+python train.py --resume="saved_models/maddpg_episode_100" # can input pending no of episodes
 ```
 
-for `test.py` : 
+### Testing
+
+To test a trained model:
 
 ```bash
 cd multi_uav_coverage_maddpg
-python test.py --model_path="directory where models to be loaded are stored relative to current dir"
+
+# Basic testing with default settings (50 episodes)
+python test.py --model_path="saved_models/maddpg_episode_final"
+
+# Test with custom number of episodes
+python test.py --model_path="saved_models/maddpg_episode_final" --num_episodes=25
+
+# Test with image initialization
+python test.py --model_path="saved_models/maddpg_episode_final" --use_img --img_path="path/to/image.png"
 ```
 
 ---

@@ -38,7 +38,7 @@ class MADDPG:
         self._init_target_networks()
 
         # Replay buffer
-        self.buffer = ReplayBuffer(max_size=1000000, num_agents=num_agents, obs_dim=self.obs_dim, action_dim=action_dim,)
+        self.buffer = ReplayBuffer(max_size=1000000, num_agents=num_agents, obs_dim=self.obs_dim, action_dim=action_dim)
 
         # Exploration noise
         self.noise = [GaussianNoise(action_dim) for _ in range(num_agents)]
@@ -87,11 +87,11 @@ class MADDPG:
             obs_batch, act_batch, rew_batch, next_obs_batch, done_batch = self.buffer.sample(batch_size)
 
             # Convert to torch tensors and ensure contiguous memory layout
-            obs_tensor = (torch.tensor(obs_batch, dtype=torch.float32).to(self.device).contiguous())
-            act_tensor = (torch.tensor(act_batch, dtype=torch.float32).to(self.device).contiguous())
-            next_obs_tensor = (torch.tensor(next_obs_batch, dtype=torch.float32).to(self.device).contiguous())
-            rew_tensor = (torch.tensor(rew_batch, dtype=torch.float32).to(self.device).contiguous())
-            done_tensor = (torch.tensor(done_batch, dtype=torch.float32).to(self.device).contiguous())
+            obs_tensor = torch.tensor(obs_batch, dtype=torch.float32).to(self.device).contiguous()
+            act_tensor = torch.tensor(act_batch, dtype=torch.float32).to(self.device).contiguous()
+            next_obs_tensor = torch.tensor(next_obs_batch, dtype=torch.float32).to(self.device).contiguous()
+            rew_tensor = torch.tensor(rew_batch, dtype=torch.float32).to(self.device).contiguous()
+            done_tensor = torch.tensor(done_batch, dtype=torch.float32).to(self.device).contiguous()
 
             # Process observations through CNN for each agent
             all_obs_features = []
@@ -221,4 +221,4 @@ class MADDPG:
             self.target_critics[i].load_state_dict(checkpoint["target_critic"])
             self.critic_optimizers[i].load_state_dict(checkpoint["critic_optimizer"])
 
-        print(f"📥 Models loaded successfully from {path}")
+        print(f"📥 Models loaded successfully from {path}\n")
