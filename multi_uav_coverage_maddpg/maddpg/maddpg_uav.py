@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-import numpy as np
 import os
 from .agents import ActorNetwork, QuantileCriticNetwork, soft_update, GaussianNoise
 from .buffer import ReplayBuffer
@@ -16,9 +15,7 @@ class MADDPG:
         self.num_agents = num_agents
         self.device = device
 
-        # CNN-based actors and critics
         self.obs_dim = obs_shape
-        self.grid_width, self.grid_height, self.input_channels = self.obs_dim
 
         # Initialize actor networks
         self.actors = [ActorNetwork(action_dim=action_dim, hidden_dim=hidden_dim).to(device) for _ in range(num_agents)]
@@ -93,6 +90,9 @@ class MADDPG:
             rew_tensor = torch.tensor(rew_batch, dtype=torch.float32).to(self.device).contiguous()
             done_tensor = torch.tensor(done_batch, dtype=torch.float32).to(self.device).contiguous()
 
+            # Flatten actions
+            act_flat = act_tensor.reshape(batch_size, -1)
+
             # Process observations through CNN for each agent
             all_obs_features = []
             all_next_obs_features = []
@@ -113,9 +113,6 @@ class MADDPG:
             obs_flat = torch.cat(all_obs_features, dim=1)
             next_obs_flat = torch.cat(all_next_obs_features, dim=1)
 
-            # Flatten actions
-            act_flat = act_tensor.reshape(batch_size, -1)
-
             # Get next actions from target actors
             next_actions = []
             for j, target_actor in enumerate(self.target_actors):
@@ -124,19 +121,21 @@ class MADDPG:
                 next_agent_action = target_actor(next_obs_j)
                 next_actions.append(next_agent_action)
 
-            next_actions_tensor = torch.stack(next_actions, dim=1)
-            next_actions_flat = next_actions_tensor.reshape(batch_size, -1)
+            next_actions_flat = torch.cat(next_actions, dim=1)
 
             # Compute predicted quantile distribution
-            critic_output = self.critics[i](next_obs_flat, next_actions_flat)  # [batch_size, num_quantiles]
+            critic_output = self.critics[i](obs_flat, act_flat)  # [batch_size, num_quantiles]
             critic_sorted, _ = torch.sort(critic_output, dim=1)
+
+            # current Q-value
             cvar_pred = torch.mean(critic_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)  # [batch_size, 1]
 
             # Calculate target Q-value
             with torch.no_grad():
                 target_output = self.target_critics[i](next_obs_flat, next_actions_flat)
                 target_sorted, _ = torch.sort(target_output, dim=1)
-                cvar_target = torch.mean(target_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)
+                cvar_target_q = torch.mean(target_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)
+                cvar_target = rew_tensor[:, i].unsqueeze(1) + self.gamma * cvar_target_q * (1 - done_tensor[:, i].unsqueeze(1))
 
             # Critic loss
             critic_loss = F.mse_loss(cvar_pred, cvar_target)
@@ -169,14 +168,11 @@ class MADDPG:
             soft_update(self.target_actors[i], self.actors[i], self.tau)
 
         # Decay noise scale after each update
-        self.decay_noise()
+        for n in self.noise:
+            n.decay()
 
     def store(self, obs, actions, rewards, next_obs, dones):
         self.buffer.add(obs, actions, rewards, next_obs, dones)
-
-    def decay_noise(self):
-        for n in self.noise:
-            n.decay()
 
     def reset_noise(self):
         for n in self.noise:

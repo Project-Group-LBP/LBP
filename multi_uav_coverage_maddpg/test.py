@@ -1,6 +1,5 @@
 import numpy as np
 import argparse
-import os
 import time
 from env import Env as MultiUAVEnv
 from maddpg.maddpg_uav import MADDPG
@@ -42,7 +41,7 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
     start_time = time.time()
 
     for episode in range(1, num_episodes + 1):
-        obs = env.reset(test=True)  # shape: (num_agents, obs_dim)
+        obs = env.reset(test=True, episode=episode)  # shape: (num_agents, obs_dim)
         maddpg.reset_noise()
 
         episode_reward = 0

@@ -46,7 +46,7 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
         maddpg.load(resume_model)
         print(f"📂 Resumed training from: {resume_model}\n")
 
-    MAX_STEPS = 300
+    MAX_STEPS = 30
     BATCH_SIZE = 32
     LOG_FREQ = 1  # 10
     LEARN_FREQ = 5  # learn every 5 steps
