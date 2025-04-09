@@ -18,10 +18,10 @@ class Logger:
             json.dump(json_data, f, indent=4)
 
     def log_episode_metrics(self, episode, episode_rewards, score_log_per_episode, LOG_FREQ, elapsed_time):
-        reward_avg = np.mean(episode_rewards[-LOG_FREQ:])
-        coverage_avg = np.mean(score_log_per_episode["coverage"][-LOG_FREQ:])
-        fairness_avg = np.mean(score_log_per_episode["fairness"][-LOG_FREQ:])
-        energy_avg = np.mean(score_log_per_episode["energy_efficiency"][-LOG_FREQ:])
+        reward_avg = float(np.mean(episode_rewards[-LOG_FREQ:]))
+        coverage_avg = float(np.mean(score_log_per_episode["coverage"][-LOG_FREQ:]))
+        fairness_avg = float(np.mean(score_log_per_episode["fairness"][-LOG_FREQ:]))
+        energy_avg = float(np.mean(score_log_per_episode["energy_efficiency"][-LOG_FREQ:]))
         penalty_avg = np.mean(np.stack(score_log_per_episode["penalty_per_uav"][-LOG_FREQ:], axis=0), axis=0)
         penalty_avg = (np.round(penalty_avg, decimals=3)).tolist()
 
