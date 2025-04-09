@@ -117,7 +117,7 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
 
     # Call the plotting function at the end of training
     print("📊 Generating plots...\n")
-    generate_plots(log_file=f"./train_logs/{f"log_data_{timestamp}.json"}", output_dir="./plots/", output_file="training_plots.png")
+    generate_plots(log_file=f"./train_logs/log_data_{timestamp}.json", output_dir="./plots/", output_file="training_plots.png")
 
 
 if __name__ == "__main__":

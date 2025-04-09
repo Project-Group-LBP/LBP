@@ -138,9 +138,6 @@ class MADDPG:
                 target_sorted, _ = torch.sort(target_output, dim=1)
                 cvar_target = torch.mean(target_sorted[:, : int(ALPHA * critic_output.size(1))], dim=1, keepdim=True)
 
-            # Current Q-value
-            critic_loss = F.mse_loss(cvar_pred, cvar_target)
-
             # Critic loss
             critic_loss = F.mse_loss(cvar_pred, cvar_target)
             self.critic_optimizers[i].zero_grad()

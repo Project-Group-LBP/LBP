@@ -82,7 +82,7 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
 
     # Call the plotting function at the end of testing
     print("📊 Generating plots...\n")
-    generate_plots(log_file=f"./test_logs/{f"log_data_{timestamp}.json"}", output_dir="./plots/", output_file="testing_plots.png")
+    generate_plots(log_file=f"./test_logs/log_data_{timestamp}.json", output_dir="./plots/", output_file="testing_plots.png")
 
 
 if __name__ == "__main__":
