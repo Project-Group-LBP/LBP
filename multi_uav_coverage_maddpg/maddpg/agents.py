@@ -6,6 +6,8 @@ from .cnn import CNN
 
 
 class ActorNetwork(nn.Module):
+    """Actor Network that maps states to actions using CNN and MLP layers."""
+
     def __init__(self, action_dim=2, hidden_dim=160):
         super(ActorNetwork, self).__init__()
 
@@ -28,9 +30,9 @@ class ActorNetwork(nn.Module):
 
 class QuantileCriticNetwork(nn.Module):
     """
-    Qunatile Critic Network:
+    Quantile Critic Network:
     This network takes state and action as input and outputs quantile values
-    This frmaework helps to compute CVaR loss
+    This framework helps to compute CVaR loss
     """
 
     def __init__(self, input_dim, action_dim, hidden_dim=128, num_quantiles=50):

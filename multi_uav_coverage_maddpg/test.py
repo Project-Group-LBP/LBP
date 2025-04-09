@@ -42,10 +42,8 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
     start_time = time.time()
 
     for episode in range(1, num_episodes + 1):
-        obs = env.reset()  # shape: (num_agents, obs_dim)
+        obs = env.reset(test=True)  # shape: (num_agents, obs_dim)
         maddpg.reset_noise()
-        if episode == 1:
-            env.save_state_image()
 
         episode_reward = 0
         score_log = {"coverage": 0, "fairness": 0, "energy_efficiency": 0, "penalty_per_uav": []}

@@ -58,22 +58,22 @@ class Env:
         self.p_wall = WALL_PENALTY
         self.p_comm = COMM_PENALTY
         self.dn = [False] * self.num_uavs  # UAVs with depleted energy
-        self.energy = np.ones(self.num_uavs).astype(np.float64) * self.max_energy
+        self.energy = np.ones(self.num_uavs).astype(np.float32) * self.max_energy
         self.penalty = np.zeros(self.num_uavs)
 
         if image_init:
-            from logs_and_inputs.decoded_points import decoded_data  # type: ignore
+            from utils.decoded_points import decoded_data  # type: ignore
 
-            self.datas = np.reshape(decoded_data, (-1, 2)).astype(np.float16) * self.map_width
+            self.datas = np.reshape(decoded_data, (-1, 2)).astype(np.float32) * self.map_width
         else:
-            self.datas = np.reshape(test_data, (-1, 2)).astype(np.float16) * self.map_width
+            self.datas = np.reshape(test_data, (-1, 2)).astype(np.float32) * self.map_width
         self.total_points = len(self.datas)
         self.coverage_map = np.zeros(self.total_points, dtype=bool)
-        self.visit_count = np.zeros(self.total_points, dtype=np.int16)
+        self.visit_count = np.zeros(self.total_points, dtype=np.int32)
         self.uav_pos = copy.deepcopy(self.init_positions)
 
-        self._init_data_map = np.zeros((self.height, self.width)).astype(np.float16)
-        self._init_position_map = np.zeros((self.num_uavs, self.height, self.width)).astype(np.float16)
+        self._init_data_map = np.zeros((self.height, self.width)).astype(np.float32)
+        self._init_position_map = np.zeros((self.num_uavs, self.height, self.width)).astype(np.float32)
 
         # Draw walls and data points on data map
         self._draw_wall(self._init_data_map)
@@ -152,7 +152,7 @@ class Env:
 
     def save_heat_map_image(self, name):
         cov_data = self.state[0][:, :, 2].copy()
-        rgb_img = np.zeros((self.height, self.width, 3), dtype=np.float64)
+        rgb_img = np.zeros((self.height, self.width, 3), dtype=np.float32)
 
         # Make data points with zero coverage white
         data_points_mask = self._init_data_map > 0  # Mask for all data point locations
@@ -175,7 +175,7 @@ class Env:
         """Initialize state"""
         state = []
         for i in range(self.num_uavs):
-            image = np.zeros((self.height, self.width, self.channels)).astype(np.float16)
+            image = np.zeros((self.height, self.width, self.channels)).astype(np.float32)
             image[:, :, 0] = copy.copy(self._init_data_map)
             image[:, :, 1] = copy.copy(self._init_position_map[i])
             # image[:, :, 2] is already initialized to zeros
@@ -216,9 +216,9 @@ class Env:
         for x, y in new_positions:
             grid[int(x)][int(y)] += 1
         prob = grid / np.sum(grid)
-        entropy = np.sum(prob * np.log(prob + 1e-6))
+        entropy = -np.sum(prob * np.log(prob + 1e-6))
 
-        return ((fairness * coverage_incr) / (energy_consumed + self.epsilon)) - (self.entropy_factor * entropy)
+        return ((fairness * coverage_incr) / (energy_consumed + self.epsilon)) + (self.entropy_factor * entropy)
 
     def step(self, action_list):
         """Process one step of the environment given agent actions"""
@@ -276,36 +276,39 @@ class Env:
 
         # Check for disconnected UAVs
         for i in range(self.num_uavs):
+            if self.dn[i]:
+                continue
             is_connected = False
             for j in range(self.num_uavs):
-                if j != i:
+                if j != i and (not self.dn[j]):
                     dist = np.linalg.norm(np.array(new_positions[i]) - np.array(new_positions[j]))
                     if dist <= self.comm_range:
                         is_connected = True
                         break
 
-            if not is_connected:
+            if (not is_connected) and (not self.dn[i]):
                 self.penalty[i] += 1
                 reward[i] += self.p_comm
 
         # Calculate common reward and metrics
         done = sum(self.dn) == self.num_uavs  # Done if all UAVs are depleted
         avg_coverage_score = np.mean(new_visit_count / self.step_count)
-        fairness = self.__get_fairness(new_visit_count.astype(np.float64))
+        fairness = self.__get_fairness(new_visit_count.astype(np.float32))
 
         total_energy_consumed = np.sum(self.max_energy - self.energy)  # Cumulative energy
         normalized_energy = total_energy_consumed / (self.num_uavs * self.step_count * self.energy_factor * self.max_dist)
         avg_energy_eff = (fairness * avg_coverage_score) / (normalized_energy + self.epsilon)
 
         common_reward = self.__get_reward(new_visit_count, energy_consumed, fairness, new_positions)
-        for i in range(self.num_uavs):
-            if not self.dn[i]:
-                reward[i] += common_reward
 
         # Check for invalid rewards
         for r in reward:
             if np.isnan(r):
                 raise ValueError("NaN value detected in reward")
+
+        for i in range(self.num_uavs):
+            if not self.dn[i]:
+                reward[i] += common_reward
 
         clear_uav_pos = copy.copy(self.uav_pos)
         self.uav_pos = new_positions
@@ -314,7 +317,7 @@ class Env:
 
         return (self.state, done, reward, (avg_coverage_score, fairness, avg_energy_eff, self.penalty))
 
-    def reset(self):
+    def reset(self, test=False, episode=None):
         """Reset environment to initial state for a new episode"""
         self.step_count = 0
         self.energy.fill(self.max_energy)
@@ -322,7 +325,16 @@ class Env:
         self.penalty.fill(0)
         self.coverage_map.fill(False)
         self.visit_count.fill(0)
-        self.uav_pos = copy.deepcopy(self.init_positions)
 
+        if test:
+            self.init_positions = np.random.rand(self.num_uavs, 2) * self.map_width
+            self._init_position_map = np.zeros((self.num_uavs, self.height, self.width)).astype(np.float32)
+            for i_n in range(self.num_uavs):
+                self._draw_UAV(self.init_positions[i_n][0], self.init_positions[i_n][1], 1.0, self._init_position_map[i_n])
+
+        self.uav_pos = copy.deepcopy(self.init_positions)
         self.__init_state()
+
+        if test and episode:
+            self.save_state_image(f"initial_state_epi_{episode}")
         return self.state
