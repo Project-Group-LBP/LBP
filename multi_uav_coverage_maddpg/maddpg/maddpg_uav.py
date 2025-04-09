@@ -65,7 +65,6 @@ class MADDPG:
 
             with torch.no_grad():
                 action = actor(obs_tensor)
-                action = action.cpu().numpy()
 
             # Handle single action without batch dimension
             if len(action.shape) > 1:
@@ -74,9 +73,10 @@ class MADDPG:
             if noise:
                 action += self.noise[i].sample()
 
-            actions.append(np.clip(action, -1, 1))
+            actions.append(torch.clamp(action, -1, 1))
 
-        return np.array(actions)
+        actions = torch.stack(actions)
+        return actions.detach().cpu().numpy()
 
     def update(self, batch_size):
         if len(self.buffer) < batch_size:

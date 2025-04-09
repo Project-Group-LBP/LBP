@@ -48,7 +48,7 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
             env.save_state_image()
 
         episode_reward = 0
-        score_log = {"coverage": 0, "fairness": 0, "energy_efficiency": 0, "penalty_per_uav": 0}
+        score_log = {"coverage": 0, "fairness": 0, "energy_efficiency": 0, "penalty_per_uav": []}
 
         for _ in range(MAX_STEPS):
             actions = maddpg.select_action(obs, noise=False)  # shape: (num_agents, action_dim)
@@ -87,7 +87,7 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test MADDPG UAV")
-    parser.add_argument("--num_episodes", type=int, default=50, help="Number of episodes to test")
+    parser.add_argument("--num_episodes", type=int, default=50, help="Number of episodes to test (default : 50)")
     parser.add_argument("--use_img", action="store_true", help="Use image initialization")
     parser.add_argument("--img_path", type=str, help="Path to the initial state image (required if --use_img is specified)")
     parser.add_argument("--model_path", type=str, help="Path to the saved model directory")

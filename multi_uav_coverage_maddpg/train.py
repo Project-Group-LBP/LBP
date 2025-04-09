@@ -66,7 +66,7 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
             env.save_state_image()
 
         episode_reward = 0
-        score_log = {"coverage": 0, "fairness": 0, "energy_efficiency": 0, "penalty_per_uav": 0}
+        score_log = {"coverage": 0, "fairness": 0, "energy_efficiency": 0, "penalty_per_uav": []}
 
         for i in range(MAX_STEPS):
             actions = maddpg.select_action(obs, noise=True)  # shape: (num_agents, action_dim)
@@ -122,10 +122,10 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train MADDPG UAV")
-    parser.add_argument("--num_episodes", type=int, default=500, help="Number of episodes to train")
+    parser.add_argument("--num_episodes", type=int, default=500, help="Number of episodes to train (default : 500)")
     parser.add_argument("--use_img", action="store_true", help="Use image initialization")
     parser.add_argument("--img_path", type=str, help="Path to the initial state image (required if --use_img is specified)")
-    parser.add_argument("--resume", type=str, help="Path to saved model to resume training from")
+    parser.add_argument("--resume", type=str, help="Path to saved model directory to resume training from")
     args = parser.parse_args()
 
     if args.use_img and not args.img_path:

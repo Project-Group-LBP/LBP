@@ -13,7 +13,7 @@ def plot_subplot(ax, x, y, xlabel, ylabel, title):
     ax.grid(True)
 
 
-def generate_plots(log_file="./train_logs/log_data.json", output_dir="./plots/", output_file="plots.png"):
+def generate_plots(log_file, output_dir, output_file):
     """Generate plots from the logs stored in 'log_file'"""
 
     # Load data from JSON file

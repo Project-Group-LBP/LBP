@@ -18,8 +18,6 @@ class Logger:
             json.dump(json_data, f, indent=4)
 
     def log_episode_metrics(self, episode, episode_rewards, score_log_per_episode, LOG_FREQ, elapsed_time):
-        """Log the metrics of the episode to a file and saves them in ./logs/training_logs.txt"""
-
         reward_avg = np.mean(episode_rewards[-LOG_FREQ:])
         coverage_avg = np.mean(score_log_per_episode["coverage"][-LOG_FREQ:])
         fairness_avg = np.mean(score_log_per_episode["fairness"][-LOG_FREQ:])
@@ -30,10 +28,6 @@ class Logger:
         # Logs are rolling averages of the last LOG_FREQ episodes
         log_msg = f"🔄 Episode {episode} | " f"Total Reward: {reward_avg:.3f} | " f"Coverage: {coverage_avg:.3f} | " f"Fairness: {fairness_avg:.3f} | " f"Energy Efficiency: {energy_avg:.3f} | " f"Penalty: {penalty_avg} | " f"Elapsed Time: {elapsed_time:.2f}s\n"
 
-        # # Print to terminal (OPTIONAL)
-        # print(log_msg.strip())
-
-        # Save to file
         with open(self.log_file_path, "a", encoding="utf-8") as f:
             f.write(log_msg)
 
