@@ -32,7 +32,8 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
     maddpg.load(load_dir)
 
     MAX_STEPS = 300
-    LOG_FREQ = 1
+    LOG_FREQ = 1 # for logging details, used for plotting graphs
+    IMG_FREQ = 10  # save image every 10 episodes
 
     # Initialize for analysis/plotting
     score_log_per_episode = {"coverage": [], "fairness": [], "energy_efficiency": [], "penalty_per_uav": []}
@@ -69,11 +70,14 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
         score_log_per_episode["energy_efficiency"].append(score_log["energy_efficiency"])
         score_log_per_episode["penalty_per_uav"].append(score_log["penalty_per_uav"])
 
+        # Log episode metrics for plotting
         if episode % LOG_FREQ == 0:
             elapsed_time = time.time() - start_time
+            logger.log_episode_metrics(episode, episode_rewards, score_log_per_episode, LOG_FREQ, elapsed_time)
+        # Save images for analysis
+        if episode % IMG_FREQ == 0:
             env.save_state_image(f"state_epi_{episode}")
             env.save_heat_map_image(f"heat_map_epi_{episode}")
-            logger.log_episode_metrics(episode, episode_rewards, score_log_per_episode, LOG_FREQ, elapsed_time)
 
     print("✅ Testing Completed!\n")
 

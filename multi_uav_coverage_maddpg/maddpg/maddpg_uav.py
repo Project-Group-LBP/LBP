@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import torch.cuda as cuda
 import os
 from .agents import ActorNetwork, QuantileCriticNetwork, soft_update, GaussianNoise
 from .buffer import ReplayBuffer
@@ -7,7 +8,18 @@ from .buffer import ReplayBuffer
 ALPHA = 0.5  # CVaR quantile level
 
 # Set device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def get_device():
+    '''Check if GPU is available and set device accordingly.'''
+    if cuda.is_available():
+        n_gpu = cuda.device_count()
+        print(f"\n🤖 Found {n_gpu} GPU(s) available.")
+        device = torch.device("cuda")
+        return device, n_gpu
+    else:
+        print("\n⚙️ No GPU available, using CPU instead.")
+        return torch.device("cpu"), 0
+
+device, num_gpus = get_device()
 
 
 class MADDPG:

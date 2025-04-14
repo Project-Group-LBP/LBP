@@ -35,7 +35,7 @@ class QuantileCriticNetwork(nn.Module):
     This framework helps to compute CVaR loss
     """
 
-    def __init__(self, input_dim, action_dim, hidden_dim=128, num_quantiles=50):
+    def __init__(self, input_dim, action_dim, hidden_dim=160, num_quantiles=50):
         super(QuantileCriticNetwork, self).__init__()
         self.num_quantiles = num_quantiles
         self.fc1 = nn.Linear(input_dim + action_dim, hidden_dim)

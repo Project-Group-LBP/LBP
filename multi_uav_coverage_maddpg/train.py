@@ -46,9 +46,10 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
         maddpg.load(resume_model)
         print(f"📂 Resumed training from: {resume_model}\n")
 
-    MAX_STEPS = 30
+    MAX_STEPS = 300
     BATCH_SIZE = 32
     LOG_FREQ = 1  # 10
+    IMG_FREQ = 10 # save image every 10 episodes
     LEARN_FREQ = 5  # learn every 5 steps
     SAVE_FREQ = 25  # save models every 25 episodes
 
@@ -100,13 +101,16 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
         score_log_per_episode["energy_efficiency"].append(score_log["energy_efficiency"])
         score_log_per_episode["penalty_per_uav"].append(score_log["penalty_per_uav"])
 
-        # Logging
+        # Log episode metrics for plotting
         if episode % LOG_FREQ == 0:
             elapsed_time = time.time() - start_time
+            logger.log_episode_metrics(episode, episode_rewards, score_log_per_episode, LOG_FREQ, elapsed_time)
+        
+        # Save images for analysis
+        if episode % IMG_FREQ == 0:
             env.save_state_image(f"state_epi_{episode}")
             env.save_heat_map_image(f"heat_map_epi_{episode}")
-            logger.log_episode_metrics(episode, episode_rewards, score_log_per_episode, LOG_FREQ, elapsed_time)
-
+        
         # Save models periodically
         if episode % SAVE_FREQ == 0:
             save_models(maddpg, episode)
