@@ -3,6 +3,7 @@ import gymnasium as gym
 import random
 import matplotlib.pyplot as plt
 
+
 class SARSAAgent:
     def __init__(self, env, alpha, gamma, epsilon):
         self.env = env
@@ -14,14 +15,10 @@ class SARSAAgent:
         num_bins = 10
         self.state_bins = []
         for i in range(len(self.upper_bounds)):
-            self.state_bins.append(
-                np.linspace(self.lower_bounds[i], self.upper_bounds[i], num_bins)
-            )
+            self.state_bins.append(np.linspace(self.lower_bounds[i], self.upper_bounds[i], num_bins))
 
         # Initialize the Q-table with zeros
-        self.Q = np.zeros(
-            [len(bins) + 1 for bins in self.state_bins] + [self.env.action_space.n]
-        )
+        self.Q = np.zeros([len(bins) + 1 for bins in self.state_bins] + [self.env.action_space.n])
 
     def discretize_state(self, state):
         state = np.array(state)
@@ -54,16 +51,12 @@ class SARSAAgent:
                 # Take action and observe reward and next state
                 next_state, reward, done, truncated, _ = self.env.step(action)
                 next_state = self.discretize_state(next_state)
-                
+
                 # Choose next action using epsilon-greedy policy
                 next_action = self.choose_action(next_state)
 
                 # Update Q-table using the SARSA update rule
-                self.Q[state][action] += self.alpha * (
-                    reward
-                    + self.gamma * self.Q[next_state][next_action]
-                    - self.Q[state][action]
-                )
+                self.Q[state][action] += self.alpha * (reward + self.gamma * self.Q[next_state][next_action] - self.Q[state][action])
 
                 state, action = next_state, next_action  # Transition to next state and action
                 total_reward += reward
@@ -76,23 +69,18 @@ class SARSAAgent:
 
             # Calculate and store rolling average reward
             if len(episode_rewards) >= 100:
-                rolling_avg_rewards.append(
-                    np.mean(episode_rewards[-100:])
-                )  # Average of the last 100 rewards
+                rolling_avg_rewards.append(np.mean(episode_rewards[-100:]))  # Average of the last 100 rewards
             else:
                 rolling_avg_rewards.append(np.mean(episode_rewards))
 
             # Print the progress every 100 episodes
             if (episode + 1) % 100 == 0:
                 avg_reward = rolling_avg_rewards[-1]
-                print(
-                    f"Episode {episode + 1}/{num_train_episodes}, Total Reward: {total_reward}, "
-                    f"Average Reward (last 100): {avg_reward:.2f}"
-                )
+                print(f"Episode {episode + 1}/{num_train_episodes}, Total Reward: {total_reward}, " f"Average Reward (last 100): {avg_reward:.2f}")
 
         overall_training_avg = np.mean(episode_rewards)
         print(f"Average Training Reward: {overall_training_avg:.2f}")
-        
+
         return episode_rewards, rolling_avg_rewards, overall_training_avg
 
     def test_agent(self, num_test_episodes, max_steps):
@@ -126,7 +114,7 @@ class SARSAAgent:
         overall_avg_reward = np.mean(episode_rewards)  # Calculate overall average reward for training
 
         # Create a figure with subplots
-        fig, axes = plt.subplots(1, 2, figsize=(14, 7), gridspec_kw={'width_ratios': [2, 1]})
+        fig, axes = plt.subplots(1, 2, figsize=(14, 7), gridspec_kw={"width_ratios": [2, 1]})
 
         # First subplot: Reward vs. Number of Episodes (Training)
         plt1 = axes[0]

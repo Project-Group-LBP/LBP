@@ -7,9 +7,10 @@ from .buffer import ReplayBuffer
 
 ALPHA = 0.5  # CVaR quantile level
 
+
 # Set device
 def get_device():
-    '''Check if GPU is available and set device accordingly.'''
+    """Check if GPU is available and set device accordingly."""
     if cuda.is_available():
         n_gpu = cuda.device_count()
         print(f"\n🤖 Found {n_gpu} GPU(s) available.")
@@ -18,6 +19,7 @@ def get_device():
     else:
         print("\n⚙️ No GPU available, using CPU instead.")
         return torch.device("cpu"), 0
+
 
 device, num_gpus = get_device()
 

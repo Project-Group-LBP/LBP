@@ -112,8 +112,7 @@ class DQNAgent:
                 rolling_avg_scores.append(avg_score)
                 print(
                     f"Episode: {episode + 1}/{episodes}, Score: {score}",
-                    f"  Average Score (last 10): {avg_score:.2f}"
-                    f"  Epsilon: {self.epsilon}",
+                    f"  Average Score (last 10): {avg_score:.2f}" f"  Epsilon: {self.epsilon}",
                 )
 
             # Update target network periodically
@@ -151,14 +150,10 @@ class DQNAgent:
         episodes = np.arange(1, len(scores) + 1)
         rolling_avg_episodes = np.arange(10, len(scores) + 1, 10)
 
-        overall_avg_score = np.mean(
-            scores
-        )  # Calculate overall average score for training
+        overall_avg_score = np.mean(scores)  # Calculate overall average score for training
 
         # Create a figure with subplots
-        fig, axes = plt.subplots(
-            1, 2, figsize=(14, 7), gridspec_kw={"width_ratios": [2, 1]}
-        )
+        fig, axes = plt.subplots(1, 2, figsize=(14, 7), gridspec_kw={"width_ratios": [2, 1]})
 
         # First subplot: Scores vs. Number of Episodes (Training)
         plt1 = axes[0]
@@ -218,12 +213,8 @@ if __name__ == "__main__":
     batch_size = 32
     num_test_episodes = 10
 
-    agent = DQNAgent(
-        env, learning_rate, gamma, epsilon_initial, epsilon_min, epsilon_decay
-    )
-    scores, rolling_avg_scores, training_avg = agent.train_dqn(
-        num_train_episodes, max_steps, batch_size
-    )
+    agent = DQNAgent(env, learning_rate, gamma, epsilon_initial, epsilon_min, epsilon_decay)
+    scores, rolling_avg_scores, training_avg = agent.train_dqn(num_train_episodes, max_steps, batch_size)
     test_avg = agent.test_dqn(num_test_episodes, max_steps)
     agent.plot_graph(scores, rolling_avg_scores, training_avg, test_avg)
     env.close()

@@ -15,14 +15,10 @@ class QLearningAgent:
         num_bins = 10
         self.state_bins = []
         for i in range(len(self.upper_bounds)):
-            self.state_bins.append(
-                np.linspace(self.lower_bounds[i], self.upper_bounds[i], num_bins)
-            )
+            self.state_bins.append(np.linspace(self.lower_bounds[i], self.upper_bounds[i], num_bins))
 
         # Initialize the Q-table with zeros
-        self.Q = np.zeros(
-            [len(bins) + 1 for bins in self.state_bins] + [self.env.action_space.n]
-        )
+        self.Q = np.zeros([len(bins) + 1 for bins in self.state_bins] + [self.env.action_space.n])
 
     def discretize_state(self, state):
         state = np.array(state)
@@ -59,11 +55,7 @@ class QLearningAgent:
                 next_state = self.discretize_state(next_state)
 
                 # Update Q-table using the Q-learning update rule
-                self.Q[state][action] += self.alpha * (
-                    reward
-                    + self.gamma * np.max(self.Q[next_state])
-                    - self.Q[state][action]
-                )
+                self.Q[state][action] += self.alpha * (reward + self.gamma * np.max(self.Q[next_state]) - self.Q[state][action])
 
                 state = next_state  # Move to the next state
                 total_reward += reward
@@ -76,9 +68,7 @@ class QLearningAgent:
 
             # Calculate and store rolling average reward
             if len(episode_rewards) >= 100:
-                rolling_avg_rewards.append(
-                    np.mean(episode_rewards[-100:])
-                )  # Average of the last 100 rewards
+                rolling_avg_rewards.append(np.mean(episode_rewards[-100:]))  # Average of the last 100 rewards
             else:
                 rolling_avg_rewards.append(np.mean(episode_rewards))
 
@@ -110,18 +100,12 @@ class QLearningAgent:
         print(f"Average Test Reward: {overall_test_avg:.2f}")
         return overall_test_avg
 
-    def plot_graph(
-        self, episode_rewards, rolling_avg_rewards, training_avg, testing_avg
-    ):
+    def plot_graph(self, episode_rewards, rolling_avg_rewards, training_avg, testing_avg):
         episodes = np.arange(1, len(episode_rewards) + 1)
-        overall_avg_reward = np.mean(
-            episode_rewards
-        )  # Calculate overall average reward for training
+        overall_avg_reward = np.mean(episode_rewards)  # Calculate overall average reward for training
 
         # Create a figure with subplots
-        _, axes = plt.subplots(
-            1, 2, figsize=(14, 7), gridspec_kw={"width_ratios": [2, 1]}
-        )
+        _, axes = plt.subplots(1, 2, figsize=(14, 7), gridspec_kw={"width_ratios": [2, 1]})
 
         # First subplot: Reward vs. Number of Episodes (Training)
         plt1 = axes[0]
@@ -178,9 +162,7 @@ if __name__ == "__main__":
     num_test_episodes = 10
 
     agent = QLearningAgent(env, alpha, gamma, epsilon)
-    episode_rewards, rolling_avg_rewards, training_avg = agent.train_agent(
-        num_train_episodes, max_steps
-    )
+    episode_rewards, rolling_avg_rewards, training_avg = agent.train_agent(num_train_episodes, max_steps)
     testing_avg = agent.test_agent(num_test_episodes, max_steps)
     agent.plot_graph(episode_rewards, rolling_avg_rewards, training_avg, testing_avg)
     env.close()

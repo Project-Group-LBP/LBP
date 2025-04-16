@@ -32,21 +32,14 @@ class Environment:
         self.reset()
 
     def reset(self):
-        self.agent_positions = {
-            i: self._random_position() for i in range(self.num_agents)
-        }
-        self.obstacle_positions = [
-            self._random_position() for _ in range(self.num_obstacles)
-        ]
+        self.agent_positions = {i: self._random_position() for i in range(self.num_agents)}
+        self.obstacle_positions = [self._random_position() for _ in range(self.num_obstacles)]
         self.visited = np.zeros((self.grid_size, self.grid_size))
         self.visited_counts = np.zeros((self.grid_size, self.grid_size))
         return self._get_state()
 
     def step(self, actions):
-        rewards = [
-            self._process_action(agent_id, action)
-            for agent_id, action in enumerate(actions)
-        ]
+        rewards = [self._process_action(agent_id, action) for agent_id, action in enumerate(actions)]
         state = self._get_state()
         done = np.all(self.visited)
         return state, rewards, done
@@ -69,19 +62,10 @@ class Environment:
         self.visited[new_pos] = 1
         self.visited_counts[new_pos] += 1
 
-        distance_penalty = sum(
-            -0.05 / (1 + np.linalg.norm(np.subtract(new_pos, pos)))
-            for other_id, pos in self.agent_positions.items()
-            if other_id != agent_id
-        )
+        distance_penalty = sum(-0.05 / (1 + np.linalg.norm(np.subtract(new_pos, pos))) for other_id, pos in self.agent_positions.items() if other_id != agent_id)
         sigmoid_penalty = -0.05 / (1 + np.exp(-visit_count + 2))
 
-        return (
-            10 * (self.visited_counts[new_pos] == 1)
-            + 1
-            + distance_penalty
-            + sigmoid_penalty
-        )
+        return 10 * (self.visited_counts[new_pos] == 1) + 1 + distance_penalty + sigmoid_penalty
 
     def _move(self, position, action):
         x, y = position
@@ -120,18 +104,9 @@ class QNetwork(nn.Module):
 class MultiAgentDeepSARSA:
     def __init__(self, env):
         self.env = env
-        self.q_networks = {
-            agent_id: QNetwork(GRID_SIZE**2, 4) for agent_id in range(NUM_AGENTS)
-        }
-        self.target_networks = {
-            agent_id: QNetwork(GRID_SIZE**2, 4) for agent_id in range(NUM_AGENTS)
-        }
-        self.optimizers = {
-            agent_id: optim.Adam(
-                self.q_networks[agent_id].parameters(), lr=LEARNING_RATE
-            )
-            for agent_id in range(NUM_AGENTS)
-        }
+        self.q_networks = {agent_id: QNetwork(GRID_SIZE**2, 4) for agent_id in range(NUM_AGENTS)}
+        self.target_networks = {agent_id: QNetwork(GRID_SIZE**2, 4) for agent_id in range(NUM_AGENTS)}
+        self.optimizers = {agent_id: optim.Adam(self.q_networks[agent_id].parameters(), lr=LEARNING_RATE) for agent_id in range(NUM_AGENTS)}
         self.criterion = nn.MSELoss()
         self.gamma = GAMMA
         self.epsilon = EPSILON
@@ -148,9 +123,7 @@ class MultiAgentDeepSARSA:
 
         return torch.argmax(q_values).item()
 
-    def update_q_network(
-        self, state, action, reward, next_state, next_action, agent_id
-    ):
+    def update_q_network(self, state, action, reward, next_state, next_action, agent_id):
         state_tensor = torch.tensor(state.flatten(), dtype=torch.float32)
         next_state_tensor = torch.tensor(next_state.flatten(), dtype=torch.float32)
 
@@ -171,17 +144,12 @@ class MultiAgentDeepSARSA:
 
         for _ in range(episodes):
             state = self.env.reset()
-            actions = [
-                self.choose_action(state, agent_id) for agent_id in range(NUM_AGENTS)
-            ]
+            actions = [self.choose_action(state, agent_id) for agent_id in range(NUM_AGENTS)]
             total_reward = 0
 
             for _ in range(MAX_STEPS):
                 next_state, rewards, done = self.env.step(actions)
-                next_actions = [
-                    self.choose_action(next_state, agent_id)
-                    for agent_id in range(NUM_AGENTS)
-                ]
+                next_actions = [self.choose_action(next_state, agent_id) for agent_id in range(NUM_AGENTS)]
 
                 for agent_id in range(NUM_AGENTS):
                     self.update_q_network(
@@ -204,9 +172,7 @@ class MultiAgentDeepSARSA:
 
             # Calculate and store rolling average reward
             if len(rewards_per_episode) >= 50:
-                rolling_avg_rewards.append(
-                    np.mean(rewards_per_episode[-50:])
-                )  # Average of the last 100 rewards
+                rolling_avg_rewards.append(np.mean(rewards_per_episode[-50:]))  # Average of the last 100 rewards
             else:
                 rolling_avg_rewards.append(np.mean(rewards_per_episode))
 
@@ -223,9 +189,7 @@ class MultiAgentDeepSARSA:
 
                 actions = []
                 for agent_id in range(NUM_AGENTS):
-                    state_tensor = torch.tensor(
-                        state.flatten(), dtype=torch.float32
-                    ).unsqueeze(0)
+                    state_tensor = torch.tensor(state.flatten(), dtype=torch.float32).unsqueeze(0)
                     with torch.no_grad():
                         q_values = self.q_networks[agent_id](state_tensor)
                         actions.append(torch.argmax(q_values).item())

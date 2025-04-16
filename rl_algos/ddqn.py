@@ -109,8 +109,7 @@ class DDQNAgent:
                 avg_score = np.mean(scores[-10:])
                 print(
                     f"Episode: {episode + 1}/{episodes}, Score: {score}",
-                    f"  Average Score (last 10): {avg_score:.2f}"
-                    f"  Epsilon: {self.epsilon}",
+                    f"  Average Score (last 10): {avg_score:.2f}" f"  Epsilon: {self.epsilon}",
                 )
 
             # Update target network periodically
@@ -157,9 +156,7 @@ if __name__ == "__main__":
     batch_size = 32
     num_test_episodes = 10
 
-    agent = DDQNAgent(
-        env, learning_rate, gamma, epsilon_initial, epsilon_min, epsilon_decay
-    )
+    agent = DDQNAgent(env, learning_rate, gamma, epsilon_initial, epsilon_min, epsilon_decay)
     agent.train_ddqn(num_train_episodes, max_steps, batch_size)
     agent.test_ddqn(num_test_episodes, max_steps)
     env.close()

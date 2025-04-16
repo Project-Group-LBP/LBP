@@ -32,7 +32,7 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
     maddpg.load(load_dir)
 
     MAX_STEPS = 300
-    LOG_FREQ = 1 # for logging details, used for plotting graphs
+    LOG_FREQ = 1  # for logging details, used for plotting graphs
     IMG_FREQ = 10  # save image every 10 episodes
 
     # Initialize for analysis/plotting

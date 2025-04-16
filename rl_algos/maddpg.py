@@ -47,9 +47,7 @@ class OUActionNoise:
 
     def __call__(self):
         x = self.state
-        dx = self.theta * (self.mu - x) * self.dt + self.sigma * np.sqrt(
-            self.dt
-        ) * np.random.normal(size=self.mu.shape)
+        dx = self.theta * (self.mu - x) * self.dt + self.sigma * np.sqrt(self.dt) * np.random.normal(size=self.mu.shape)
         self.state = x + dx
         return self.state.copy()
 
@@ -141,9 +139,7 @@ class MADDPG:
         self.gamma = gamma
         self.tau = tau
         self.batch_size = batch_size
-        self.env = simple_spread_v3.parallel_env(
-            max_cycles=epi_length, continuous_actions=True, local_ratio=local_ratio
-        )
+        self.env = simple_spread_v3.parallel_env(max_cycles=epi_length, continuous_actions=True, local_ratio=local_ratio)
         self.env.reset()
         first_agent = self.env.agents[0]
         obs_dim = self.env.observation_space(first_agent).shape[0]
@@ -153,9 +149,7 @@ class MADDPG:
         self.buffers = {}
         self.noises = {}
         for agent_id in self.env.agents:
-            self.agents[agent_id] = Agent(
-                obs_dim, act_dim, global_obs_act_dim, actor_lr, critic_lr
-            )
+            self.agents[agent_id] = Agent(obs_dim, act_dim, global_obs_act_dim, actor_lr, critic_lr)
             self.buffers[agent_id] = Buffer(capacity, obs_dim, act_dim)
             self.noises[agent_id] = OUActionNoise(act_dim)
 
@@ -169,9 +163,7 @@ class MADDPG:
             soft_update(agent.critic, agent.target_critic)
 
     def sample(self):
-        indices = np.random.choice(
-            self.buffers["agent_0"].size, size=self.batch_size, replace=False
-        )
+        indices = np.random.choice(self.buffers["agent_0"].size, size=self.batch_size, replace=False)
         obs_dict, act_dict, rew_dict, done_dict = {}, {}, {}, {}
         glob_obs, glob_act, glob_next_obs, glob_next_act = [], [], [], []
         # Sample experience from buffers of all agents
@@ -201,24 +193,18 @@ class MADDPG:
     # Heart of the algorithm
     def learn(self):
         for agent_id, agent in self.agents.items():
-            obs, act, reward, done, glob_obs, glob_act, glob_next_obs, glob_next_act = (
-                self.sample()
-            )
+            obs, act, reward, done, glob_obs, glob_act, glob_next_obs, glob_next_act = self.sample()
 
             # Update critic
             q = agent.critic(torch.cat(glob_obs + glob_act, 1)).squeeze(1)
-            q_target = agent.target_critic(
-                torch.cat(glob_next_obs + glob_next_act, 1)
-            ).squeeze(1)
+            q_target = agent.target_critic(torch.cat(glob_next_obs + glob_next_act, 1)).squeeze(1)
             # Squeeze : [batch_size, 1] -> [batch_size]
 
             y = reward[agent_id] + self.gamma * q_target * (1 - done[agent_id])
             critic_loss = nn.MSELoss()(q, y)
             agent.critic_optimizer.zero_grad()
             critic_loss.backward()
-            torch.nn.utils.clip_grad_norm_(
-                agent.critic.parameters(), 0.5
-            )  # gradient clipping
+            torch.nn.utils.clip_grad_norm_(agent.critic.parameters(), 0.5)  # gradient clipping
             agent.critic_optimizer.step()
 
             # Update actor
@@ -228,9 +214,7 @@ class MADDPG:
             actor_loss = -q.mean()
             agent.actor_optimizer.zero_grad()
             actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(
-                agent.actor.parameters(), 0.5
-            )  # gradient clipping
+            torch.nn.utils.clip_grad_norm_(agent.actor.parameters(), 0.5)  # gradient clipping
             agent.actor_optimizer.step()
 
     def select_train_action(self, obs, step, initial_steps):
@@ -241,21 +225,15 @@ class MADDPG:
         else:  # select actions using actor networks
             for id, o in obs.items():
                 o = torch.from_numpy(o).unsqueeze(0).float()
-                action = (
-                    self.agents[id].actor(o).squeeze(0).detach().numpy()
-                )  # Squeeze : [1, action_dim] -> [action_dim]
-                actions[id] = np.clip(action + self.noises[id](), 0.0, 1.0).astype(
-                    np.float32
-                )  # add noise
+                action = self.agents[id].actor(o).squeeze(0).detach().numpy()  # Squeeze : [1, action_dim] -> [action_dim]
+                actions[id] = np.clip(action + self.noises[id](), 0.0, 1.0).astype(np.float32)  # add noise
         return actions
 
     def select_test_action(self, obs):  # testing without noise
         actions = {}
         for agent_id, o in obs.items():
             o = torch.from_numpy(o).unsqueeze(0).float()
-            actions[agent_id] = (
-                self.agents[agent_id].actor(o).squeeze(0).detach().numpy()
-            )
+            actions[agent_id] = self.agents[agent_id].actor(o).squeeze(0).detach().numpy()
         return actions
 
     def train(self, episodes, initial_steps, learn_interval):
@@ -377,9 +355,7 @@ def load_model(maddpg, episode_length, file):
     if not os.path.exists(file):
         raise FileNotFoundError(f"File not found: {file}")
     data = torch.load(file, weights_only=True)
-    maddpg.env = simple_spread_v3.parallel_env(
-        max_cycles=episode_length, continuous_actions=True
-    )
+    maddpg.env = simple_spread_v3.parallel_env(max_cycles=episode_length, continuous_actions=True)
     maddpg.env.reset()
     for agent_id, agent in maddpg.agents.items():
         agent.actor.load_state_dict(data[agent_id])
@@ -419,9 +395,7 @@ if __name__ == "__main__":
 
     if args.train:
         print("Training")
-        episode_rewards = maddpg.train(
-            NUM_TRAIN_EPISODES, INITIAL_STEPS, LEARN_INTERVAL
-        )
+        episode_rewards = maddpg.train(NUM_TRAIN_EPISODES, INITIAL_STEPS, LEARN_INTERVAL)
         save_model(maddpg, result_dir)
         plot_graphs(NUM_TRAIN_EPISODES, episode_rewards, result_dir)
 

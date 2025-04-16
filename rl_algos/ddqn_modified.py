@@ -18,6 +18,7 @@ NUM_AGENTS = 3
 NUM_OBSTACLES = 15
 BATCH_SIZE = 32
 
+
 class Environment:
     def __init__(self, grid_size, num_agents, num_obstacles):
         self.grid_size = grid_size
@@ -59,12 +60,7 @@ class Environment:
 
     def _move(self, position, action):
         x, y = position
-        return [
-            (max(x - 1, 0), y),
-            (min(x + 1, self.grid_size - 1), y),
-            (x, max(y - 1, 0)),
-            (x, min(y + 1, self.grid_size - 1))
-        ][action]
+        return [(max(x - 1, 0), y), (min(x + 1, self.grid_size - 1), y), (x, max(y - 1, 0)), (x, min(y + 1, self.grid_size - 1))][action]
 
     def _get_state(self):
         state = np.zeros((self.grid_size, self.grid_size))
@@ -73,6 +69,7 @@ class Environment:
         for agent_id, pos in self.agent_positions.items():
             state[pos] = agent_id + 1
         return state
+
 
 class DDQNAgent:
     def __init__(self, state_size, action_size):
@@ -85,13 +82,8 @@ class DDQNAgent:
         self.update_target_model()
 
     def _build_model(self):
-        model = tf.keras.Sequential([
-            tf.keras.layers.Flatten(input_shape=(self.state_size, self.state_size)),
-            tf.keras.layers.Dense(24, activation='relu'),
-            tf.keras.layers.Dense(24, activation='relu'),
-            tf.keras.layers.Dense(self.action_size, activation='linear')
-        ])
-        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE), loss='mse')
+        model = tf.keras.Sequential([tf.keras.layers.Flatten(input_shape=(self.state_size, self.state_size)), tf.keras.layers.Dense(24, activation="relu"), tf.keras.layers.Dense(24, activation="relu"), tf.keras.layers.Dense(self.action_size, activation="linear")])
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE), loss="mse")
         return model
 
     def update_target_model(self):
@@ -125,11 +117,14 @@ class DDQNAgent:
         if self.epsilon > EPSILON_MIN:
             self.epsilon *= EPSILON_DECAY
 
+
 def initialize_environment():
     return Environment(GRID_SIZE, NUM_AGENTS, NUM_OBSTACLES)
 
+
 def initialize_agents():
     return [DDQNAgent(GRID_SIZE, 4) for _ in range(NUM_AGENTS)]
+
 
 def execute_episode(env, agents):
     state = env.reset()
@@ -155,6 +150,7 @@ def execute_episode(env, agents):
 
     return total_rewards, episode_rewards, episode_coverage
 
+
 def train_agents():
     env = initialize_environment()
     agents = initialize_agents()
@@ -168,22 +164,24 @@ def train_agents():
 
     return rewards_history, coverage_history
 
+
 def plot_results(rewards_history, coverage_history):
     plt.figure(figsize=(10, 6))
     for episode_rewards in rewards_history:
         plt.plot(episode_rewards)
-    plt.xlabel('Steps')
-    plt.ylabel('Cumulative Reward')
-    plt.title('Cumulative Reward vs. Steps')
+    plt.xlabel("Steps")
+    plt.ylabel("Cumulative Reward")
+    plt.title("Cumulative Reward vs. Steps")
     plt.show()
 
     plt.figure(figsize=(10, 6))
     for episode_coverage in coverage_history:
         plt.plot(episode_coverage)
-    plt.xlabel('Steps')
-    plt.ylabel('Coverage (%)')
-    plt.title('Coverage vs. Steps')
+    plt.xlabel("Steps")
+    plt.ylabel("Coverage (%)")
+    plt.title("Coverage vs. Steps")
     plt.show()
+
 
 if __name__ == "__main__":
     rewards_history, coverage_history = train_agents()
