@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 import time
 from env import Env as MultiUAVEnv
-from maddpg.maddpg_uav import MADDPG
+from maddpg.maddpg_uav import MADDPG, get_device
 from utils.input import input_image
 from utils.logger import Logger
 from utils.plot_logs import generate_plots
@@ -28,7 +28,8 @@ def test(load_dir, num_episodes, use_image_init=False, image_path=None):
     obs_dim = (env.height, env.width, env.channels)
     action_dim = 2
 
-    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim)
+    device, num_gpus = get_device()
+    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim, device=device)
     maddpg.load(load_dir)
 
     MAX_STEPS = 300

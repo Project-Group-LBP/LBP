@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 import os
 import time
-from env import Env as MultiUAVEnv
+from env import Env as MultiUAVEnv, get_device
 from maddpg.maddpg_uav import MADDPG
 from utils.input import input_image
 from utils.logger import Logger
@@ -41,7 +41,8 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
     obs_dim = (env.height, env.width, env.channels)
     action_dim = 2
 
-    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim)
+    device, _ = get_device()
+    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim,  device=device)
     if resume_model:
         maddpg.load(resume_model)
         print(f"📂 Resumed training from: {resume_model}\n")

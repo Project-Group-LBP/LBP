@@ -72,3 +72,17 @@ python test.py --model_path="saved_models/maddpg_episode_final" --use_img --img_
 ```
 
 ---
+
+
+Testing Results :
+
+Best performing model (run for 50 episodes) : 
+```
+Average values over all episodes:
+reward: -11771.382959
+coverage: 0.330369
+fairness: 0.331693
+energy_efficiency: 0.135578
+time: 117.566891
+penalty: 1413.680000
+```
