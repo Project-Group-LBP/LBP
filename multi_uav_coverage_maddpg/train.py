@@ -50,9 +50,12 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
     MAX_STEPS = 300
     BATCH_SIZE = 32
     LOG_FREQ = 1  # 10
-    IMG_FREQ = 10  # save image every 10 episodes
+    IMG_FREQ = 100  # save image every 100 episodes
     LEARN_FREQ = 5  # learn every 5 steps
-    SAVE_FREQ = 25  # save models every 25 episodes
+    SAVE_FREQ = num_episodes // 10
+    
+    if(num_episodes < 1000): 
+        SAVE_FREQ = 100
 
     # Initialize for analysis/plotting
     score_log_per_episode = {"coverage": [], "fairness": [], "energy_efficiency": [], "penalty_per_uav": []}
@@ -122,7 +125,7 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
 
     # Call the plotting function at the end of training
     print("📊 Generating plots...\n")
-    generate_plots(log_file=f"./train_logs/log_data_{timestamp}.json", output_dir="./plots/", output_file="training_plots.png")
+    generate_plots(log_file=f"./train_logs/log_data_{timestamp}.json", output_dir="./train_plots/", output_file_prefix="train")
 
 
 if __name__ == "__main__":

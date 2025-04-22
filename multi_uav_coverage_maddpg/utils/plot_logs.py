@@ -3,17 +3,21 @@ import json
 import matplotlib.pyplot as plt
 
 
-def plot_subplot(ax, x, y, xlabel, ylabel, title):
-    """Helper function to plot a single subplot"""
-    ax.plot(x, y, label=ylabel, linestyle="-", marker="o")
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_title(title)
-    ax.legend()
-    ax.grid(True)
+def plot_metric(x, y, xlabel, ylabel, title, output_path):
+    """Helper function to plot a single metric as a scatter plot and save it separately"""
+    plt.figure(figsize=(10, 6))
+    plt.scatter(x, y)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
+    print(f"📊 {title} plot saved to {output_path}")
 
 
-def generate_plots(log_file, output_dir, output_file):
+def generate_plots(log_file, output_dir, output_file_prefix):
     """Generate plots from the logs stored in 'log_file'"""
 
     # Load data from JSON file
@@ -26,20 +30,14 @@ def generate_plots(log_file, output_dir, output_file):
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
-    # Create a 2x2 grid of subplots
-    fig, axs = plt.subplots(2, 2, figsize=(20, 12))
-    fig.suptitle("Performance Metrics per Episode", fontsize=16)
+    # Plot each metric as a separate file
+    metrics = ["reward", "coverage", "fairness", "energy_efficiency"]
 
-    # Plot each metric
-    plot_subplot(axs[0, 0], parameters["episode"], parameters["reward"], "Episode", "Reward", "Reward vs Episode")
-    plot_subplot(axs[0, 1], parameters["episode"], parameters["coverage"], "Episode", "Coverage", "Coverage vs Episode")
-    plot_subplot(axs[1, 0], parameters["episode"], parameters["fairness"], "Episode", "Fairness", "Fairness vs Episode")
-    plot_subplot(axs[1, 1], parameters["episode"], parameters["energy_efficiency"], "Episode", "Energy Efficiency", "Energy Efficiency vs Episode")
+    for metric in metrics:
+        output_path = os.path.join(output_dir, f"{output_file_prefix}_{metric}.png")
+        plot_metric(parameters["episode"], parameters[metric], "Episode", metric.replace("_", " ").title(), f"{metric.replace('_', ' ').title()} vs Episode", output_path)
 
-    # Adjust layout and save the figure
-    plt.tight_layout()
-    output_file_name = os.path.join(output_dir, output_file)
-    plt.savefig(output_file_name)
-    plt.close()
+    plot_metric(parameters["coverage"], parameters["fairness"], "Coverage", "Fairness", "Fairness vs Coverage", os.path.join(output_dir, f"{output_file_prefix}_fairness_vs_coverage.png"))
+    plot_metric(parameters["energy_efficiency"], parameters["fairness"], "Energy Efficiency", "Fairness", "Fairness vs Energy Efficiency", os.path.join(output_dir, f"{output_file_prefix}_fairness_vs_energy_efficiency.png"))
 
-    print(f"📈 Plots saved to {output_file_name}\n")
+    print(f"\n✅ All scatter plots saved to {output_dir}\n")
