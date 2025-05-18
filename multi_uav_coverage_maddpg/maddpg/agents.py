@@ -57,7 +57,7 @@ def soft_update(target_net, source_net, tau):
 
 # Gaussian noise with decay for exploration
 class GaussianNoise:
-    def __init__(self, size, initial_scale=1.0, min_scale=0.1, decay_rate=0.995, device='cpu'):
+    def __init__(self, size, initial_scale=1.0, min_scale=0.1, decay_rate=0.995, device="cpu"):
         self.size = size
         self.initial_scale = initial_scale
         self.min_scale = min_scale

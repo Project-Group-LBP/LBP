@@ -42,7 +42,7 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
     action_dim = 2
 
     device, _ = get_device()
-    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim,  device=device)
+    maddpg = MADDPG(num_agents=num_agents, obs_shape=obs_dim, action_dim=action_dim, device=device)
     if resume_model:
         maddpg.load(resume_model)
         print(f"📂 Resumed training from: {resume_model}\n")
@@ -53,8 +53,8 @@ def train(num_episodes, use_image_init=False, image_path=None, resume_model=None
     IMG_FREQ = 100  # save image every 100 episodes
     LEARN_FREQ = 5  # learn every 5 steps
     SAVE_FREQ = num_episodes // 10
-    
-    if(num_episodes < 1000): 
+
+    if num_episodes < 1000:
         SAVE_FREQ = 100
 
     # Initialize for analysis/plotting
